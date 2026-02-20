@@ -1,73 +1,102 @@
-# Welcome to your Lovable project
+# TastePulse - Restaurant Review Sentiment Analysis
 
-## Project info
+AI-powered restaurant review sentiment analysis platform built with React (frontend) and Flask (backend).
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Tech Stack
 
-## How can I edit this code?
+- **Frontend**: React + TypeScript + Vite + Tailwind CSS + shadcn-ui
+- **Backend**: Python Flask + scikit-learn (Sentiment Analysis Model)
+- **ML Model**: LinearSVC with TF-IDF vectorizer trained on Yelp polarity dataset
 
-There are several ways of editing your application.
+## Features
 
-**Use Lovable**
+- **Customer Dashboard**: Browse restaurants, write reviews with AI-powered sentiment analysis
+- **Owner Dashboard**: View analytics, sentiment trends, and recent reviews
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Getting Started
 
-Changes made via Lovable will be committed automatically to this repo.
+### Prerequisites
 
-**Use your preferred IDE**
+- Node.js & npm (for frontend)
+- Python 3.8+ (for backend)
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Frontend Setup
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+```
+bash
+# Install dependencies
+npm install
 
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The frontend will run at `http://localhost:8080` (Vite's configured port)
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Backend Setup
 
-**Use GitHub Codespaces**
+```
+bash
+# Navigate to backend directory
+cd backend
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+# Create virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-## What technologies are used for this project?
+# Install dependencies
+pip install -r requirements.txt
 
-This project is built with:
+# Start the server
+python server.py
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+The backend will run at `http://localhost:5000`
 
-## How can I deploy this project?
+**Note**: Make sure the model files (`restaurant_sentiment_model.pkl` and `tfidf_vectorizer.pkl`) are in the backend directory.
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+### Running the Full Application
 
-## Can I connect a custom domain to my Lovable project?
+1. Start the backend server first (port 5000)
+2. Start the frontend dev server (port 8080)
+3. Open `http://localhost:8080` in your browser
 
-Yes, you can!
+The Vite proxy is configured to forward `/api` requests to the backend at `http://localhost:5000`.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## API Endpoints
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/predict` | POST | Predict sentiment for text |
+| `/api/reviews` | GET | Get all reviews |
+| `/api/reviews` | POST | Add a new review |
+| `/api/reviews/<restaurant>` | GET | Get reviews for a restaurant |
+| `/api/restaurants` | GET | Get all restaurants with sentiment data |
+| `/api/analytics` | GET | Get overall analytics |
+| `/api/sentiment-trend` | GET | Get sentiment trend over time |
+| `/api/category-breakdown` | GET | Get sentiment by category |
+
+## Project Structure
+
+```
+├── backend/
+│   ├── server.py           # Flask API server
+│   ├── model.py            # Model training script
+│   ├── test.py             # Test script for model
+│   ├── requirements.txt   # Python dependencies
+│   ├── restaurant_sentiment_model.pkl
+│   └── tfidf_vectorizer.pkl
+├── src/
+│   ├── pages/
+│   │   ├── CustomerDashboard.tsx
+│   │   ├── OwnerDashboard.tsx
+│   │   └── Index.tsx
+│   ├── services/
+│   │   └── api.ts         # API service layer
+│   └── ...
+└── package.json
+```
+
+## License
+
+MIT

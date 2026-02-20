@@ -1,31 +1,102 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Send, Star } from "lucide-react";
+import { LogOut, Send, Star, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import StarRating from "@/components/StarRating";
 import SentimentBadge from "@/components/SentimentBadge";
-import { mockRestaurants, mockReviews } from "@/data/mockData";
+import { Restaurant, Review, getRestaurants, getReviewsByRestaurant, addReview } from "@/services/api";
 import { toast } from "sonner";
 
 const CustomerDashboard = () => {
   const navigate = useNavigate();
-  const [selectedRestaurant, setSelectedRestaurant] = useState(mockRestaurants[0]);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewText, setReviewText] = useState("");
   const [rating, setRating] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const restaurantReviews = mockReviews.filter((r) => r.restaurantName === selectedRestaurant.name);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        const restaurantsData = await getRestaurants();
+        setRestaurants(restaurantsData);
+        if (restaurantsData.length > 0) {
+          setSelectedRestaurant(restaurantsData[0]);
+          // Filter reviews for the selected restaurant
+          const reviewsData = await getReviewsByRestaurant(restaurantsData[0].name);
+          setReviews(reviewsData);
+        }
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+        toast.error("Failed to load data. Please make sure the backend is running.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const handleSubmitReview = (e: React.FormEvent) => {
+    fetchData();
+  }, []);
+
+  const handleRestaurantSelect = (restaurant: Restaurant) => {
+    setSelectedRestaurant(restaurant);
+    // Filter reviews for selected restaurant
+    getReviewsByRestaurant(restaurant.name)
+      .then(setReviews)
+      .catch(console.error);
+  };
+
+  const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!rating || !reviewText.trim()) {
       toast.error("Please add a rating and review text");
       return;
     }
-    toast.success("Review submitted! Thank you for your feedback.");
-    setReviewText("");
-    setRating(0);
+    if (!selectedRestaurant) {
+      toast.error("Please select a restaurant");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const newReview = await addReview({
+        customerName: "Guest User",
+        restaurantName: selectedRestaurant.name,
+        rating,
+        text: reviewText,
+        category: "General"
+      });
+      
+      toast.success("Review submitted! Sentiment: " + newReview.sentiment);
+      setReviews([newReview, ...reviews]);
+      setReviewText("");
+      setRating(0);
+    } catch (error) {
+      console.error("Failed to submit review:", error);
+      toast.error("Failed to submit review. Please make sure the backend is running.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!selectedRestaurant) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">No restaurants available.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -47,10 +118,10 @@ const CustomerDashboard = () => {
           {/* Restaurant List */}
           <div className="space-y-4">
             <h2 className="font-display text-lg font-semibold text-foreground">Restaurants</h2>
-            {mockRestaurants.map((restaurant) => (
+            {restaurants.map((restaurant) => (
               <button
                 key={restaurant.id}
-                onClick={() => setSelectedRestaurant(restaurant)}
+                onClick={() => handleRestaurantSelect(restaurant)}
                 className={`w-full text-left p-5 rounded-xl border transition-all font-body ${
                   selectedRestaurant.id === restaurant.id
                     ? "border-primary bg-primary/5 shadow-md"
@@ -62,16 +133,16 @@ const CustomerDashboard = () => {
                   <span className="text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">{restaurant.cuisine}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <StarRating rating={Math.round(restaurant.averageRating)} size={14} />
-                  <span className="text-sm text-muted-foreground">{restaurant.averageRating}</span>
+                  <StarRating rating={Math.round(restaurant.sentimentSummary.averageRating)} size={14} />
+                  <span className="text-sm text-muted-foreground">{restaurant.sentimentSummary.averageRating}</span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">{restaurant.totalReviews} reviews</p>
+                <p className="text-xs text-muted-foreground mt-1">{restaurant.sentimentSummary.total} reviews</p>
 
                 {/* Mini sentiment bar */}
                 <div className="flex h-1.5 rounded-full overflow-hidden mt-3 bg-secondary">
-                  <div className="bg-success" style={{ width: `${(restaurant.sentimentSummary.positive / restaurant.sentimentSummary.total) * 100}%` }} />
-                  <div className="bg-warning" style={{ width: `${(restaurant.sentimentSummary.neutral / restaurant.sentimentSummary.total) * 100}%` }} />
-                  <div className="bg-destructive" style={{ width: `${(restaurant.sentimentSummary.negative / restaurant.sentimentSummary.total) * 100}%` }} />
+                  <div className="bg-success" style={{ width: `${(restaurant.sentimentSummary.positive / (restaurant.sentimentSummary.total || 1)) * 100}%` }} />
+                  <div className="bg-warning" style={{ width: `${(restaurant.sentimentSummary.neutral / (restaurant.sentimentSummary.total || 1)) * 100}%` }} />
+                  <div className="bg-destructive" style={{ width: `${(restaurant.sentimentSummary.negative / (restaurant.sentimentSummary.total || 1)) * 100}%` }} />
                 </div>
               </button>
             ))}
@@ -108,8 +179,13 @@ const CustomerDashboard = () => {
                   onChange={(e) => setReviewText(e.target.value)}
                   className="min-h-[100px] bg-background border-border font-body"
                 />
-                <Button type="submit" className="gradient-amber text-primary-foreground font-body font-semibold hover:opacity-90 transition-opacity">
-                  <Send className="w-4 h-4 mr-2" /> Submit Review
+                <Button type="submit" disabled={isSubmitting} className="gradient-amber text-primary-foreground font-body font-semibold hover:opacity-90 transition-opacity">
+                  {isSubmitting ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4 mr-2" />
+                  )}
+                  Submit Review
                 </Button>
               </form>
             </div>
@@ -117,12 +193,12 @@ const CustomerDashboard = () => {
             {/* Reviews */}
             <div className="space-y-4">
               <h2 className="font-display text-lg font-semibold text-foreground">
-                Reviews ({restaurantReviews.length})
+                Reviews ({reviews.length})
               </h2>
-              {restaurantReviews.length === 0 ? (
+              {reviews.length === 0 ? (
                 <p className="text-muted-foreground font-body text-sm">No reviews yet for this restaurant.</p>
               ) : (
-                restaurantReviews.map((review) => (
+                reviews.map((review) => (
                   <div key={review.id} className="glass-card rounded-xl p-5 animate-fade-in">
                     <div className="flex items-center gap-3 mb-2">
                       <div className="w-9 h-9 rounded-full gradient-amber flex items-center justify-center text-primary-foreground text-sm font-semibold font-body">
