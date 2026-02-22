@@ -8,10 +8,23 @@ AI-powered restaurant review sentiment analysis platform built with React (front
 - **Backend**: Python Flask + scikit-learn (Sentiment Analysis Model)
 - **ML Model**: LinearSVC with TF-IDF vectorizer trained on Yelp polarity dataset
 
+## Authentication & Security
+
+- **Firebase Auth** used for email/password login.
+- **Custom roles** (owner/customer) stored in localStorage for route protection; see `AuthContext`.
+- **Protected Routes** implemented via `ProtectedRoute` component.
+- All API calls optionally include Firebase ID token in `Authorization` header.
+- Sensitive credentials (service account key) were removed from the repository to satisfy GitHub push protection.
+
 ## Features
 
-- **Customer Dashboard**: Browse restaurants, write reviews with AI-powered sentiment analysis
-- **Owner Dashboard**: View analytics, sentiment trends, and recent reviews
+- **Customer Dashboard**: Browse restaurants, view and submit reviews with AI‑powered sentiment analysis.
+- **Owner Dashboard**: Manage restaurants, reply to reviews, and inspect sentiment analytics.
+- **Role-Based Access**: Firebase authentication with owner and customer roles, protected routes using React Router.
+- **Sentiment Analytics**: Aggregate data from reviews including trends over time, category breakdowns, and overall statistics.
+- **Full-Featured API**: Endpoints for predictions, restaurant management, review CRUD operations, analytics, and more.
+- **Offline Fallback**: Backend includes a rule‑based sentiment classifier if ML model files are unavailable.
+
 
 ## Getting Started
 
@@ -100,3 +113,12 @@ The Vite proxy is configured to forward `/api` requests to the backend at `http:
 ## License
 
 MIT
+
+---
+
+## Notes
+
+- Repository pushed to GitHub at **vnkatpara-dev/TastePulse** by collaborator.
+- A service account key was removed from history to comply with GitHub secret scanning.
+- Recent commit message: **Background, Delete, Download**.
+- README content has been brought up‑to‑date with authentication, API endpoints, and features.
