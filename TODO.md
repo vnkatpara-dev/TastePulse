@@ -1,15 +1,12 @@
-# TODO: Connect Backend with Frontend
+# Task: Add Restaurant Management to Owner Dashboard
 
-## Backend
-- [x] 1. Create Flask backend server with sentiment prediction API
-- [x] 2. Add CORS support for frontend-backend communication
-- [x] 3. Create simple JSON-based storage for reviews
+## Plan:
+- [x] 1. Analyze the codebase (OwnerDashboard.tsx, api.ts, backend/server.py)
+- [x] 2. Update OwnerDashboard.tsx with restaurant management functionality
+  - [x] Add restaurant state and fetch functionality
+  - [x] Add "Add Restaurant" button in header
+  - [x] Add restaurant list section with Edit and Delete buttons
+  - [x] Create Dialog for adding/editing restaurants
+  - [x] Implement add, delete, and update functionality
 
-## Frontend
-- [x] 4. Create API service layer
-- [x] 5. Update CustomerDashboard to use backend for sentiment analysis
-- [x] 6. Update OwnerDashboard to fetch real data from backend
-
-## Setup
-- [x] 7. Create requirements.txt for backend dependencies
-- [x] 8. Document how to run the application
+## Status: Completed

@@ -16,11 +16,36 @@ MODEL_PATH = os.path.join(os.path.dirname(__file__), "restaurant_sentiment_model
 VECTORIZER_PATH = os.path.join(os.path.dirname(__file__), "tfidf_vectorizer.pkl")
 DATA_PATH = os.path.join(os.path.dirname(__file__), "reviews.json")
 
-# Load model and vectorizer at startup
-print("Loading model and vectorizer...")
-model = joblib.load(MODEL_PATH)
-vectorizer = joblib.load(VECTORIZER_PATH)
-print("Model loaded successfully!")
+# Try to load model and vectorizer, use fallback if it fails
+model = None
+vectorizer = None
+
+try:
+    print("Loading model and vectorizer...")
+    model = joblib.load(MODEL_PATH)
+    vectorizer = joblib.load(VECTORIZER_PATH)
+    print("Model loaded successfully!")
+except Exception as e:
+    print(f"Could not load ML model: {e}")
+    print("Using fallback rule-based sentiment classifier")
+    model = None
+    vectorizer = None
+
+# Fallback rule-based sentiment classifier
+def simple_sentiment(text):
+    """Simple rule-based sentiment classifier as fallback"""
+    text_lower = text.lower()
+    pos_words = ["good", "great", "excellent", "amazing", "love", "delicious", "friendly", "awesome", "best", "nice", "fantastic", "wonderful", "perfect", "stunning", "phenomenal", "impressive", "warm", "welcoming", "fresh", "divine", "outstanding", "superb"]
+    neg_words = ["bad", "terrible", "awful", "hate", "horrible", "rude", "slow", "worst", "poor", "disgusting", "dirty", "cold", "overpriced", "dismissive", "lost", "waited", "hair", "difficult", "okay", "decent"]
+    
+    pos_count = sum(1 for word in pos_words if word in text_lower)
+    neg_count = sum(1 for word in neg_words if word in text_lower)
+    
+    if pos_count > neg_count:
+        return "positive"
+    elif neg_count > pos_count:
+        return "negative"
+    return "neutral"
 
 # Initialize data file if it doesn't exist
 if not os.path.exists(DATA_PATH):
@@ -77,17 +102,18 @@ def predict_sentiment():
         if not text:
             return jsonify({'error': 'Text is required'}), 400
         
-        # Transform text and predict
-        text_vector = vectorizer.transform([text])
-        prediction = model.predict(text_vector)[0]
-        
-        # Get decision function score for confidence
-        decision_score = model.decision_function(text_vector)[0]
-        
-        # Normalize to 0-1 range using sigmoid-like transformation
-        confidence = 1 / (1 + abs(decision_score))
-        
-        sentiment_score = calculate_sentiment_score(prediction, confidence)
+        # Use ML model if available, otherwise use fallback classifier
+        if model is not None and vectorizer is not None:
+            text_vector = vectorizer.transform([text])
+            prediction = model.predict(text_vector)[0]
+            decision_score = model.decision_function(text_vector)[0]
+            confidence = 1 / (1 + abs(decision_score))
+            sentiment_score = calculate_sentiment_score(prediction, confidence)
+        else:
+            # Use fallback classifier
+            prediction = simple_sentiment(text)
+            confidence = 0.7
+            sentiment_score = calculate_sentiment_score(prediction, confidence)
         
         return jsonify({
             'sentiment': prediction,
@@ -130,12 +156,19 @@ def add_review():
         
         # Predict sentiment for the review text
         text = data['text']
-        text_vector = vectorizer.transform([text])
-        prediction = model.predict(text_vector)[0]
         
-        decision_score = model.decision_function(text_vector)[0]
-        confidence = 1 / (1 + abs(decision_score))
-        sentiment_score = calculate_sentiment_score(prediction, confidence)
+        # Use ML model if available, otherwise use fallback classifier
+        if model is not None and vectorizer is not None:
+            text_vector = vectorizer.transform([text])
+            prediction = model.predict(text_vector)[0]
+            decision_score = model.decision_function(text_vector)[0]
+            confidence = 1 / (1 + abs(decision_score))
+            sentiment_score = calculate_sentiment_score(prediction, confidence)
+        else:
+            # Use fallback classifier
+            prediction = simple_sentiment(text)
+            confidence = 0.7
+            sentiment_score = calculate_sentiment_score(prediction, confidence)
         
         # Create review object
         review = {
@@ -195,6 +228,98 @@ def get_restaurants():
                 }
         
         return jsonify(restaurants)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/restaurants', methods=['POST'])
+def add_restaurant():
+    """Add a new restaurant"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['name', 'cuisine']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'{field} is required'}), 400
+        
+        # Create restaurant object
+        restaurant = {
+            'id': str(uuid.uuid4()),
+            'name': data['name'],
+            'cuisine': data['cuisine'],
+            'averageRating': 0,
+            'totalReviews': 0
+        }
+        
+        # Load existing data and add restaurant
+        db_data = load_data()
+        db_data['restaurants'].append(restaurant)
+        save_data(db_data)
+        
+        return jsonify(restaurant), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/restaurants/<restaurant_id>', methods=['DELETE'])
+def delete_restaurant(restaurant_id):
+    """Delete a restaurant"""
+    try:
+        # Load existing data
+        db_data = load_data()
+        
+        # Find the restaurant name before removing
+        restaurant_name = None
+        for r in db_data['restaurants']:
+            if r['id'] == restaurant_id:
+                restaurant_name = r['name']
+                break
+        
+        if not restaurant_name:
+            return jsonify({'error': 'Restaurant not found'}), 404
+        
+        # Find and remove the restaurant
+        initial_length = len(db_data['restaurants'])
+        db_data['restaurants'] = [r for r in db_data['restaurants'] if r['id'] != restaurant_id]
+        
+        if len(db_data['restaurants']) == initial_length:
+            return jsonify({'error': 'Restaurant not found'}), 404
+        
+        # Also remove all reviews for this restaurant
+        db_data['reviews'] = [r for r in db_data['reviews'] if r['restaurantName'] != restaurant_name]
+        
+        save_data(db_data)
+        
+        return jsonify({'message': 'Restaurant deleted successfully'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/restaurants/<restaurant_id>', methods=['PUT'])
+def update_restaurant(restaurant_id):
+    """Update a restaurant"""
+    try:
+        data = request.get_json()
+        
+        # Load existing data
+        db_data = load_data()
+        
+        # Find and update the restaurant
+        restaurant_found = False
+        for restaurant in db_data['restaurants']:
+            if restaurant['id'] == restaurant_id:
+                if 'name' in data:
+                    restaurant['name'] = data['name']
+                if 'cuisine' in data:
+                    restaurant['cuisine'] = data['cuisine']
+                restaurant_found = True
+                break
+        
+        if not restaurant_found:
+            return jsonify({'error': 'Restaurant not found'}), 404
+        
+        save_data(db_data)
+        
+        return jsonify({'message': 'Restaurant updated successfully'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

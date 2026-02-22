@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Send, Star, Loader2 } from "lucide-react";
+import { LogOut, Send, Star, Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import StarRating from "@/components/StarRating";
 import SentimentBadge from "@/components/SentimentBadge";
-import { Restaurant, Review, getRestaurants, getReviewsByRestaurant, addReview } from "@/services/api";
+import { Restaurant, Review, getRestaurants, getReviewsByRestaurant, addReview, addRestaurant, deleteRestaurant } from "@/services/api";
 import { toast } from "sonner";
 
 const CustomerDashboard = () => {
@@ -17,6 +19,10 @@ const CustomerDashboard = () => {
   const [rating, setRating] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAddRestaurantOpen, setIsAddRestaurantOpen] = useState(false);
+  const [newRestaurantName, setNewRestaurantName] = useState("");
+  const [newRestaurantCuisine, setNewRestaurantCuisine] = useState("");
+  const [isAddingRestaurant, setIsAddingRestaurant] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -82,6 +88,59 @@ const CustomerDashboard = () => {
     }
   };
 
+  const handleAddRestaurant = async () => {
+    if (!newRestaurantName.trim() || !newRestaurantCuisine.trim()) {
+      toast.error("Please enter restaurant name and cuisine");
+      return;
+    }
+
+    try {
+      setIsAddingRestaurant(true);
+      const newRestaurant = await addRestaurant({
+        name: newRestaurantName,
+        cuisine: newRestaurantCuisine
+      });
+      
+      toast.success("Restaurant added successfully!");
+      setRestaurants([...restaurants, newRestaurant]);
+      setNewRestaurantName("");
+      setNewRestaurantCuisine("");
+      setIsAddRestaurantOpen(false);
+    } catch (error) {
+      console.error("Failed to add restaurant:", error);
+      toast.error("Failed to add restaurant.");
+    } finally {
+      setIsAddingRestaurant(false);
+    }
+  };
+
+  const handleDeleteRestaurant = async (restaurantId: string, restaurantName: string) => {
+    if (!confirm(`Are you sure you want to delete "${restaurantName}"?`)) {
+      return;
+    }
+
+    try {
+      await deleteRestaurant(restaurantId);
+      toast.success("Restaurant deleted successfully!");
+      const updatedRestaurants = restaurants.filter(r => r.id !== restaurantId);
+      setRestaurants(updatedRestaurants);
+      
+      // If the deleted restaurant was selected, select another one
+      if (selectedRestaurant?.id === restaurantId) {
+        setSelectedRestaurant(updatedRestaurants.length > 0 ? updatedRestaurants[0] : null);
+        if (updatedRestaurants.length > 0) {
+          const reviewsData = await getReviewsByRestaurant(updatedRestaurants[0].name);
+          setReviews(reviewsData);
+        } else {
+          setReviews([]);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to delete restaurant:", error);
+      toast.error("Failed to delete restaurant.");
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -117,7 +176,12 @@ const CustomerDashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Restaurant List */}
           <div className="space-y-4">
-            <h2 className="font-display text-lg font-semibold text-foreground">Restaurants</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-semibold text-foreground">Restaurants</h2>
+              <Button size="sm" onClick={() => setIsAddRestaurantOpen(true)} className="gradient-amber text-primary-foreground font-body">
+                <Plus className="w-4 h-4 mr-1" /> Add
+              </Button>
+            </div>
             {restaurants.map((restaurant) => (
               <button
                 key={restaurant.id}
@@ -143,6 +207,11 @@ const CustomerDashboard = () => {
                   <div className="bg-success" style={{ width: `${(restaurant.sentimentSummary.positive / (restaurant.sentimentSummary.total || 1)) * 100}%` }} />
                   <div className="bg-warning" style={{ width: `${(restaurant.sentimentSummary.neutral / (restaurant.sentimentSummary.total || 1)) * 100}%` }} />
                   <div className="bg-destructive" style={{ width: `${(restaurant.sentimentSummary.negative / (restaurant.sentimentSummary.total || 1)) * 100}%` }} />
+                </div>
+                <div className="mt-2 flex justify-end">
+                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleDeleteRestaurant(restaurant.id, restaurant.name); }} className="text-destructive hover:text-destructive">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
               </button>
             ))}
@@ -223,13 +292,48 @@ const CustomerDashboard = () => {
                     </div>
                   </div>
                 ))
-              )}
+            )}
             </div>
           </div>
         </div>
       </main>
+
+      {/* Add Restaurant Dialog */}
+      <Dialog open={isAddRestaurantOpen} onOpenChange={setIsAddRestaurantOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add New Restaurant</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Input
+                id="name"
+                placeholder="Restaurant Name"
+                value={newRestaurantName}
+                onChange={(e) => setNewRestaurantName(e.target.value)}
+                className="col-span-4"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Input
+                id="cuisine"
+                placeholder="Cuisine Type"
+                value={newRestaurantCuisine}
+                onChange={(e) => setNewRestaurantCuisine(e.target.value)}
+                className="col-span-4"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleAddRestaurant} disabled={isAddingRestaurant}>
+              {isAddingRestaurant ? "Adding..." : "Add Restaurant"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
 export default CustomerDashboard;
+

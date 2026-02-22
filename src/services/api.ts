@@ -157,3 +157,46 @@ export const getCategoryBreakdown = async (): Promise<CategoryBreakdown[]> => {
 
   return response.json();
 };
+
+// Add a new restaurant
+export const addRestaurant = async (restaurant: { name: string; cuisine: string }): Promise<Restaurant> => {
+  const response = await fetch(`${API_BASE_URL}/restaurants`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(restaurant),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to add restaurant');
+  }
+
+  return response.json();
+};
+
+// Delete a restaurant
+export const deleteRestaurant = async (restaurantId: string): Promise<void> => {
+  const response = await fetch(`${API_BASE_URL}/restaurants/${restaurantId}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to delete restaurant');
+  }
+};
+
+// Update a restaurant
+export const updateRestaurant = async (restaurantId: string, restaurant: { name?: string; cuisine?: string }): Promise<void> => {
+  const response = await fetch(`${API_BASE_URL}/restaurants/${restaurantId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(restaurant),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to update restaurant');
+  }
+};

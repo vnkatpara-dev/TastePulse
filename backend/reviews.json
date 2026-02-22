@@ -164,6 +164,50 @@
       "sentimentScore": 0.18186818129444293,
       "date": "2026-02-21",
       "category": "General"
+    },
+    {
+      "id": "223dc0f0-ac5e-4ac7-9ea9-853ec336e7aa",
+      "customerName": "Test User",
+      "restaurantName": "The Golden Fork",
+      "rating": 5,
+      "text": "The food was absolutely amazing and delicious!",
+      "sentiment": "positive",
+      "sentimentScore": 0.85,
+      "date": "2026-02-21",
+      "category": "Food Quality"
+    },
+    {
+      "id": "4201e616-c4a9-4f87-a351-6c0129d49200",
+      "customerName": "Guest User",
+      "restaurantName": "The Golden Fork",
+      "rating": 4,
+      "text": "The food was absolutely amazing and the service was very quick. Highly recommended!",
+      "sentiment": "positive",
+      "sentimentScore": 0.85,
+      "date": "2026-02-21",
+      "category": "General"
+    },
+    {
+      "id": "7a9431de-1981-4cc1-a641-f2f002d506e8",
+      "customerName": "Guest User",
+      "restaurantName": "The Golden Fork",
+      "rating": 3,
+      "text": "Food was decent but nothing extraordinary.",
+      "sentiment": "negative",
+      "sentimentScore": 0.15000000000000002,
+      "date": "2026-02-21",
+      "category": "General"
+    },
+    {
+      "id": "46c2a8d4-c955-48e6-b9b8-8a5ebeb416ea",
+      "customerName": "Guest User",
+      "restaurantName": "The Golden Fork",
+      "rating": 1,
+      "text": "Very poor food quality and staff was rude ",
+      "sentiment": "negative",
+      "sentimentScore": 0.15000000000000002,
+      "date": "2026-02-21",
+      "category": "General"
     }
   ],
   "restaurants": [
