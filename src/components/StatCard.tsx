@@ -11,7 +11,7 @@ interface StatCardProps {
 
 const StatCard = ({ title, value, icon, subtitle, className }: StatCardProps) => (
   <div className={cn("glass-card rounded-xl p-6 animate-fade-in", className)}>
-    <div className="flex items-start justify-between">
+    <div className="flex items-center justify-between">
       <div>
         <p className="text-sm text-muted-foreground font-body">{title}</p>
         <p className="text-3xl font-bold font-display mt-1 text-foreground">{value}</p>

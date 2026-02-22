@@ -125,19 +125,50 @@ def predict_sentiment():
 
 @app.route('/api/reviews', methods=['GET'])
 def get_reviews():
-    """Get all reviews"""
+    """Get all reviews with optional date filtering"""
     try:
+        start_date = request.args.get('startDate')
+        end_date = request.args.get('endDate')
+        
         data = load_data()
-        return jsonify(data['reviews'])
+        reviews = data['reviews']
+        
+        if start_date or end_date:
+            filtered_reviews = []
+            for r in reviews:
+                review_date = r.get('date', '')
+                if start_date and review_date < start_date:
+                    continue
+                if end_date and review_date > end_date:
+                    continue
+                filtered_reviews.append(r)
+            return jsonify(filtered_reviews)
+        
+        return jsonify(reviews)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/reviews/<restaurant_name>', methods=['GET'])
 def get_reviews_by_restaurant(restaurant_name):
-    """Get reviews for a specific restaurant"""
+    """Get reviews for a specific restaurant with optional date filtering"""
     try:
+        start_date = request.args.get('startDate')
+        end_date = request.args.get('endDate')
+        
         data = load_data()
         reviews = [r for r in data['reviews'] if r['restaurantName'] == restaurant_name]
+        
+        if start_date or end_date:
+            filtered_reviews = []
+            for r in reviews:
+                review_date = r.get('date', '')
+                if start_date and review_date < start_date:
+                    continue
+                if end_date and review_date > end_date:
+                    continue
+                filtered_reviews.append(r)
+            return jsonify(filtered_reviews)
+        
         return jsonify(reviews)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -401,6 +432,22 @@ def get_category_breakdown():
         ]
         
         return jsonify(breakdown)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/reviews/<review_id>', methods=['DELETE'])
+def delete_review(review_id):
+    """Delete a review"""
+    try:
+        db_data = load_data()
+        initial_length = len(db_data['reviews'])
+        db_data['reviews'] = [r for r in db_data['reviews'] if r['id'] != review_id]
+        
+        if len(db_data['reviews']) == initial_length:
+            return jsonify({'error': 'Review not found'}), 404
+        
+        save_data(db_data)
+        return jsonify({'message': 'Review deleted successfully'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

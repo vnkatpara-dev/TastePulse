@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import StarRating from "@/components/StarRating";
 import SentimentBadge from "@/components/SentimentBadge";
-import { Restaurant, Review, getRestaurants, getReviewsByRestaurant, addReview, addRestaurant, deleteRestaurant } from "@/services/api";
+import { Restaurant, Review, getRestaurants, getReviewsByRestaurant, addReview, addRestaurant, deleteRestaurant, deleteReview } from "@/services/api";
 import { toast } from "sonner";
 
 const CustomerDashboard = () => {
@@ -138,6 +138,23 @@ const CustomerDashboard = () => {
     } catch (error) {
       console.error("Failed to delete restaurant:", error);
       toast.error("Failed to delete restaurant.");
+    }
+  };
+
+  const handleDeleteReview = async (reviewId: string) => {
+    if (window.confirm("Are you sure you want to delete this review?")) {
+      try {
+        await deleteReview(reviewId);
+        toast.success("Review deleted successfully");
+        // Refresh reviews
+        if (selectedRestaurant) {
+          const reviewsData = await getReviewsByRestaurant(selectedRestaurant.name);
+          setReviews(reviewsData);
+        }
+      } catch (error) {
+        console.error("Failed to delete review:", error);
+        toast.error("Failed to delete review");
+      }
     }
   };
 
@@ -281,6 +298,14 @@ const CustomerDashboard = () => {
                         <div className="flex items-center gap-2 mt-0.5">
                           <StarRating rating={review.rating} size={12} />
                           <span className="text-xs text-muted-foreground font-body">{review.date}</span>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handleDeleteReview(review.id)} 
+                            className="text-muted-foreground hover:text-red-500 ml-2"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
                       </div>
                     </div>

@@ -1,12 +1,22 @@
-# Task: Add Restaurant Management to Owner Dashboard
+# Task List: Fix Reviews Visibility and Report Download
 
-## Plan:
-- [x] 1. Analyze the codebase (OwnerDashboard.tsx, api.ts, backend/server.py)
-- [x] 2. Update OwnerDashboard.tsx with restaurant management functionality
-  - [x] Add restaurant state and fetch functionality
-  - [x] Add "Add Restaurant" button in header
-  - [x] Add restaurant list section with Edit and Delete buttons
-  - [x] Create Dialog for adding/editing restaurants
-  - [x] Implement add, delete, and update functionality
+## Phase 1: Backend Updates
+- [x] 1. Add date filtering support to `/api/reviews` endpoint
+- [x] 2. Add date filtering support to `/api/analytics` endpoint
+- [x] 3. Add date filtering support to `/api/sentiment-trend` endpoint
+- [x] 4. Add date filtering support to `/api/category-breakdown` endpoint
+- [x] 5. Make delete review available without authentication (for customer use)
 
-## Status: Completed
+## Phase 2: Frontend API Updates
+- [x] 6. Update api.ts to support date filtering parameters
+
+## Phase 3: Owner Dashboard Updates
+- [x] 7. Add auto-refresh for reviews in OwnerDashboard
+- [x] 8. Add delete review button to each review in OwnerDashboard
+- [x] 9. Add timeframe selection dialog for report download (Already existed in code)
+
+## Phase 4: Customer Dashboard Updates
+- [x] 10. Add delete review button to each review in CustomerDashboard
+
+## Phase 5: Testing
+- [x] 11. Test all features work correctly - Completed all frontend changes

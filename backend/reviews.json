@@ -8,7 +8,7 @@
       "text": "Absolutely stunning food and ambiance. The truffle pasta was divine!",
       "sentiment": "positive",
       "sentimentScore": 0.95,
-      "date": "2026-02-18",
+      "date": "2025-01-05",
       "category": "Food Quality"
     },
     {
@@ -19,19 +19,8 @@
       "text": "Service was incredibly slow. Waited 45 minutes for appetizers.",
       "sentiment": "negative",
       "sentimentScore": 0.15,
-      "date": "2026-02-17",
+      "date": "2025-01-12",
       "category": "Service"
-    },
-    {
-      "id": "3",
-      "customerName": "Carol S.",
-      "restaurantName": "The Golden Fork",
-      "rating": 4,
-      "text": "Great food but the noise level made conversation difficult.",
-      "sentiment": "neutral",
-      "sentimentScore": 0.6,
-      "date": "2026-02-16",
-      "category": "Ambiance"
     },
     {
       "id": "4",
@@ -41,7 +30,7 @@
       "text": "Best Indian food I've had outside of India. The butter chicken is phenomenal.",
       "sentiment": "positive",
       "sentimentScore": 0.92,
-      "date": "2026-02-15",
+      "date": "2025-01-25",
       "category": "Food Quality"
     },
     {
@@ -52,7 +41,7 @@
       "text": "Found a hair in my soup. Management was dismissive about it.",
       "sentiment": "negative",
       "sentimentScore": 0.05,
-      "date": "2026-02-14",
+      "date": "2025-02-03",
       "category": "Hygiene"
     },
     {
@@ -63,7 +52,7 @@
       "text": "Lovely date night spot. Wine selection is impressive.",
       "sentiment": "positive",
       "sentimentScore": 0.82,
-      "date": "2026-02-13",
+      "date": "2025-02-14",
       "category": "Ambiance"
     },
     {
@@ -74,7 +63,7 @@
       "text": "The freshest seafood in town. Lobster bisque was out of this world!",
       "sentiment": "positive",
       "sentimentScore": 0.97,
-      "date": "2026-02-12",
+      "date": "2025-02-20",
       "category": "Food Quality"
     },
     {
@@ -85,7 +74,7 @@
       "text": "Food was okay but overpriced for the portion size.",
       "sentiment": "neutral",
       "sentimentScore": 0.45,
-      "date": "2026-02-11",
+      "date": "2025-03-05",
       "category": "Value"
     },
     {
@@ -96,7 +85,7 @@
       "text": "Warm and welcoming staff. The naan bread was perfectly crispy.",
       "sentiment": "positive",
       "sentimentScore": 0.85,
-      "date": "2026-02-10",
+      "date": "2025-03-12",
       "category": "Service"
     },
     {
@@ -107,7 +96,7 @@
       "text": "Reservation was lost. Had to wait 30 minutes despite booking ahead.",
       "sentiment": "negative",
       "sentimentScore": 0.12,
-      "date": "2026-02-09",
+      "date": "2025-03-25",
       "category": "Service"
     },
     {
@@ -118,7 +107,7 @@
       "text": "The sunset view paired with amazing sushi. Unforgettable experience!",
       "sentiment": "positive",
       "sentimentScore": 0.94,
-      "date": "2026-02-08",
+      "date": "2025-04-10",
       "category": "Ambiance"
     },
     {
@@ -129,44 +118,352 @@
       "text": "Decent food but nothing special. Expected more given the hype.",
       "sentiment": "neutral",
       "sentimentScore": 0.5,
-      "date": "2026-02-07",
+      "date": "2025-04-18",
       "category": "Food Quality"
     },
     {
-      "id": "49cc0c1e-3439-4b91-9eab-352dd2c3bba2",
+      "id": "13",
+      "customerName": "Maria G.",
+      "restaurantName": "The Golden Fork",
+      "rating": 5,
+      "text": "Perfect anniversary dinner! The risotto was creamy and delicious.",
+      "sentiment": "positive",
+      "sentimentScore": 0.96,
+      "date": "2025-05-02",
+      "category": "Food Quality"
+    },
+    {
+      "id": "14",
+      "customerName": "Nick F.",
+      "restaurantName": "Spice Route",
+      "rating": 4,
+      "text": "Great lunch buffet with lots of variety. The mango lassi is a must-try!",
+      "sentiment": "positive",
+      "sentimentScore": 0.88,
+      "date": "2025-05-15",
+      "category": "Value"
+    },
+    {
+      "id": "15",
+      "customerName": "Olivia J.",
+      "restaurantName": "Ocean Breeze",
+      "rating": 2,
+      "text": "Fish was not fresh. Got sick after eating here.",
+      "sentiment": "negative",
+      "sentimentScore": 0.08,
+      "date": "2025-05-28",
+      "category": "Hygiene"
+    },
+    {
+      "id": "16",
+      "customerName": "Paul K.",
+      "restaurantName": "The Golden Fork",
+      "rating": 3,
+      "text": "Food was average. Portions have gotten smaller.",
+      "sentiment": "neutral",
+      "sentimentScore": 0.48,
+      "date": "2025-06-08",
+      "category": "Value"
+    },
+    {
+      "id": "17",
+      "customerName": "Quinn L.",
+      "restaurantName": "Spice Route",
+      "rating": 5,
+      "text": "Amazing dosas! Super crispy and the sambar is authentic.",
+      "sentiment": "positive",
+      "sentimentScore": 0.93,
+      "date": "2025-06-20",
+      "category": "Food Quality"
+    },
+    {
+      "id": "18",
+      "customerName": "Rachel M.",
+      "restaurantName": "Ocean Breeze",
+      "rating": 4,
+      "text": "Beautiful ocean view. Great for special occasions.",
+      "sentiment": "positive",
+      "sentimentScore": 0.84,
+      "date": "2025-07-04",
+      "category": "Ambiance"
+    },
+    {
+      "id": "19",
+      "customerName": "Steve N.",
+      "restaurantName": "The Golden Fork",
+      "rating": 1,
+      "text": "Waited over an hour for our table. Completely unacceptable!",
+      "sentiment": "negative",
+      "sentimentScore": 0.05,
+      "date": "2025-07-12",
+      "category": "Service"
+    },
+    {
+      "id": "20",
+      "customerName": "Tina O.",
+      "restaurantName": "Spice Route",
+      "rating": 4,
+      "text": "The chicken tikka masala is mouthwatering. Highly recommend!",
+      "sentiment": "positive",
+      "sentimentScore": 0.87,
+      "date": "2025-07-25",
+      "category": "Food Quality"
+    },
+    {
+      "id": "21",
+      "customerName": "Uma P.",
+      "restaurantName": "Ocean Breeze",
+      "rating": 5,
+      "text": "Best seafood in town! The grilled salmon was perfection.",
+      "sentiment": "positive",
+      "sentimentScore": 0.98,
+      "date": "2025-08-05",
+      "category": "Food Quality"
+    },
+    {
+      "id": "22",
+      "customerName": "Victor Q.",
+      "restaurantName": "The Golden Fork",
+      "rating": 3,
+      "text": "Not bad, but I've had better Italian elsewhere.",
+      "sentiment": "neutral",
+      "sentimentScore": 0.52,
+      "date": "2025-08-18",
+      "category": "Food Quality"
+    },
+    {
+      "id": "23",
+      "customerName": "Wendy R.",
+      "restaurantName": "Spice Route",
+      "rating": 2,
+      "text": "Too spicy for my taste. The bill was also higher than expected.",
+      "sentiment": "negative",
+      "sentimentScore": 0.18,
+      "date": "2025-08-30",
+      "category": "Value"
+    },
+    {
+      "id": "24",
+      "customerName": "Xavier S.",
+      "restaurantName": "Ocean Breeze",
+      "rating": 4,
+      "text": "Fresh oysters and great cocktail selection. Love this place!",
+      "sentiment": "positive",
+      "sentimentScore": 0.86,
+      "date": "2025-09-10",
+      "category": "Food Quality"
+    },
+    {
+      "id": "25",
+      "customerName": "Yara T.",
+      "restaurantName": "The Golden Fork",
+      "rating": 5,
+      "text": "The tiramisu is to die for! Will definitely come back.",
+      "sentiment": "positive",
+      "sentimentScore": 0.95,
+      "date": "2025-09-22",
+      "category": "Food Quality"
+    },
+    {
+      "id": "26",
+      "customerName": "Zach U.",
+      "restaurantName": "Spice Route",
+      "rating": 3,
+      "text": "Food was decent. Service could be faster.",
+      "sentiment": "neutral",
+      "sentimentScore": 0.55,
+      "date": "2025-10-05",
+      "category": "Service"
+    },
+    {
+      "id": "27",
+      "customerName": "Amy V.",
+      "restaurantName": "Ocean Breeze",
+      "rating": 4,
+      "text": "Romantic dinner spot. The seafood platter is huge!",
+      "sentiment": "positive",
+      "sentimentScore": 0.83,
+      "date": "2025-10-18",
+      "category": "Ambiance"
+    },
+    {
+      "id": "28",
+      "customerName": "Brian W.",
+      "restaurantName": "The Golden Fork",
+      "rating": 2,
+      "text": "Cold pizza and rude staff. Very disappointed.",
+      "sentiment": "negative",
+      "sentimentScore": 0.1,
+      "date": "2025-11-02",
+      "category": "Food Quality"
+    },
+    {
+      "id": "29",
+      "customerName": "Cathy X.",
+      "restaurantName": "Spice Route",
+      "rating": 5,
+      "text": "Perfect for family dinners. The biryani is authentic and flavorful!",
+      "sentiment": "positive",
+      "sentimentScore": 0.91,
+      "date": "2025-11-15",
+      "category": "Food Quality"
+    },
+    {
+      "id": "30",
+      "customerName": "Dan Y.",
+      "restaurantName": "Ocean Breeze",
+      "rating": 3,
+      "text": "Good food but the prices increased significantly.",
+      "sentiment": "neutral",
+      "sentimentScore": 0.45,
+      "date": "2025-11-28",
+      "category": "Value"
+    },
+    {
+      "id": "31",
+      "customerName": "Elena Z.",
+      "restaurantName": "The Golden Fork",
+      "rating": 5,
+      "text": "Best pasta in the city! The homemade linguine is amazing.",
+      "sentiment": "positive",
+      "sentimentScore": 0.94,
+      "date": "2025-12-08",
+      "category": "Food Quality"
+    },
+    {
+      "id": "32",
+      "customerName": "Fred A.",
+      "restaurantName": "Spice Route",
+      "rating": 4,
+      "text": "Great vegetarian options. The paneer dishes are excellent.",
+      "sentiment": "positive",
+      "sentimentScore": 0.82,
+      "date": "2025-12-20",
+      "category": "Food Quality"
+    },
+    {
+      "id": "33",
+      "customerName": "Gina B.",
+      "restaurantName": "Ocean Breeze",
+      "rating": 5,
+      "text": "Amazing Christmas dinner! The surf and turf was incredible.",
+      "sentiment": "positive",
+      "sentimentScore": 0.97,
+      "date": "2025-12-25",
+      "category": "Food Quality"
+    },
+    {
+      "id": "34",
+      "customerName": "Harry C.",
+      "restaurantName": "The Golden Fork",
+      "rating": 2,
+      "text": "New Year's Eve service was a disaster. Long waits everywhere.",
+      "sentiment": "negative",
+      "sentimentScore": 0.12,
+      "date": "2025-12-31",
+      "category": "Service"
+    },
+    {
+      "id": "35",
+      "customerName": "Ivy D.",
+      "restaurantName": "Spice Route",
+      "rating": 4,
+      "text": "Cozy atmosphere and friendly staff. Love the chai!",
+      "sentiment": "positive",
+      "sentimentScore": 0.81,
+      "date": "2026-01-10",
+      "category": "Ambiance"
+    },
+    {
+      "id": "36",
+      "customerName": "James E.",
+      "restaurantName": "Ocean Breeze",
+      "rating": 5,
+      "text": "The shrimp scampi was exceptional. Great wine pairing!",
+      "sentiment": "positive",
+      "sentimentScore": 0.96,
+      "date": "2026-01-22",
+      "category": "Food Quality"
+    },
+    {
+      "id": "37",
+      "customerName": "Katie F.",
+      "restaurantName": "The Golden Fork",
+      "rating": 3,
+      "text": "Valentine's Day was busy but food was good.",
+      "sentiment": "neutral",
+      "sentimentScore": 0.58,
+      "date": "2026-02-14",
+      "category": "Food Quality"
+    },
+    {
+      "id": "38",
+      "customerName": "Larry G.",
+      "restaurantName": "Spice Route",
+      "rating": 5,
+      "text": "The lamb curry is phenomenal! Best in town.",
+      "sentiment": "positive",
+      "sentimentScore": 0.93,
+      "date": "2026-02-18",
+      "category": "Food Quality"
+    },
+    {
+      "id": "39",
+      "customerName": "Monica H.",
+      "restaurantName": "Ocean Breeze",
+      "rating": 2,
+      "text": "Overpriced and portions are small. Won't return.",
+      "sentiment": "negative",
+      "sentimentScore": 0.15,
+      "date": "2026-02-20",
+      "category": "Value"
+    },
+    {
+      "id": "40",
+      "customerName": "Nathan I.",
+      "restaurantName": "The Golden Fork",
+      "rating": 4,
+      "text": "Great pizza with authentic toppings. Nice casual vibe.",
+      "sentiment": "positive",
+      "sentimentScore": 0.84,
+      "date": "2026-02-21",
+      "category": "Food Quality"
+    },
+    {
+      "id": "41",
       "customerName": "Guest User",
       "restaurantName": "The Golden Fork",
       "rating": 1,
-      "text": "The food was gross\n",
+      "text": "The food was gross",
       "sentiment": "negative",
-      "sentimentScore": 0.3366496181579667,
+      "sentimentScore": 0.34,
       "date": "2026-02-21",
       "category": "General"
     },
     {
-      "id": "96891fac-fb5c-4454-a5a3-eab50fa9a727",
+      "id": "42",
       "customerName": "Guest User",
       "restaurantName": "Spice Route",
       "rating": 1,
       "text": "food is delicious",
       "sentiment": "positive",
-      "sentimentScore": 0.6260951376510093,
+      "sentimentScore": 0.63,
       "date": "2026-02-21",
       "category": "General"
     },
     {
-      "id": "76322491-1f07-4238-9955-608b94745445",
+      "id": "43",
       "customerName": "Guest User",
       "restaurantName": "The Golden Fork",
       "rating": 1,
       "text": "Shivam is gay",
       "sentiment": "negative",
-      "sentimentScore": 0.18186818129444293,
+      "sentimentScore": 0.18,
       "date": "2026-02-21",
       "category": "General"
     },
     {
-      "id": "223dc0f0-ac5e-4ac7-9ea9-853ec336e7aa",
+      "id": "44",
       "customerName": "Test User",
       "restaurantName": "The Golden Fork",
       "rating": 5,
@@ -177,7 +474,7 @@
       "category": "Food Quality"
     },
     {
-      "id": "4201e616-c4a9-4f87-a351-6c0129d49200",
+      "id": "45",
       "customerName": "Guest User",
       "restaurantName": "The Golden Fork",
       "rating": 4,
@@ -188,26 +485,50 @@
       "category": "General"
     },
     {
-      "id": "7a9431de-1981-4cc1-a641-f2f002d506e8",
+      "id": "46",
       "customerName": "Guest User",
       "restaurantName": "The Golden Fork",
       "rating": 3,
       "text": "Food was decent but nothing extraordinary.",
       "sentiment": "negative",
-      "sentimentScore": 0.15000000000000002,
+      "sentimentScore": 0.15,
       "date": "2026-02-21",
       "category": "General"
     },
     {
-      "id": "46c2a8d4-c955-48e6-b9b8-8a5ebeb416ea",
+      "id": "47",
       "customerName": "Guest User",
       "restaurantName": "The Golden Fork",
       "rating": 1,
       "text": "Very poor food quality and staff was rude ",
       "sentiment": "negative",
-      "sentimentScore": 0.15000000000000002,
+      "sentimentScore": 0.15,
       "date": "2026-02-21",
       "category": "General"
+    },
+    {
+      "id": "48",
+      "customerName": "Guest User",
+      "restaurantName": "The Golden Fork",
+      "rating": 3,
+      "text": "The food was good",
+      "sentiment": "positive",
+      "sentimentScore": 0.85,
+      "date": "2026-02-22",
+      "category": "General",
+      "userEmail": "akak64154@gmail.com"
+    },
+    {
+      "id": "2e4c7a03-5b3e-47bf-84ce-06c549ab182e",
+      "customerName": "Guest User",
+      "restaurantName": "Ocean Breeze",
+      "rating": 3,
+      "text": "The fishcurry was not so special but paplet was lovely ",
+      "sentiment": "positive",
+      "sentimentScore": 0.85,
+      "date": "2026-02-23",
+      "category": "General",
+      "userEmail": "akak64154@gmail.com"
     }
   ],
   "restaurants": [

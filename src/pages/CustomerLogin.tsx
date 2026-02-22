@@ -5,15 +5,45 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { UtensilsCrossed, Star, MessageSquare, Heart } from "lucide-react";
 import restaurantHero from "@/assets/restaurant-hero.jpg";
+import { useAuth } from "@/contexts/AuthContext";
 
 const CustomerLogin = () => {
   const navigate = useNavigate();
+  const { signIn, signUp } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/customer/dashboard");
+    setError("");
+    setLoading(true);
+    
+    try {
+      await signIn(email, password, "customer");
+      navigate("/customer/dashboard");
+    } catch (err: any) {
+      setError(err.message || "Failed to sign in");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    
+    try {
+      await signUp(email, password, "customer");
+      navigate("/customer/dashboard");
+    } catch (err: any) {
+      setError(err.message || "Failed to sign up");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -61,7 +91,13 @@ const CustomerLogin = () => {
             </div>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-5">
+          {error && (
+            <div className="mb-4 p-3 rounded bg-red-100 border border-red-400 text-red-700 text-sm">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={isSignUp ? handleSignUp : handleLogin} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-foreground font-body">Email</Label>
               <Input
@@ -71,6 +107,7 @@ const CustomerLogin = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="h-12 bg-card border-border font-body"
+                required
               />
             </div>
             <div className="space-y-2">
@@ -82,14 +119,29 @@ const CustomerLogin = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="h-12 bg-card border-border font-body"
+                required
               />
             </div>
-            <Button type="submit" className="w-full h-12 gradient-amber text-primary-foreground font-body font-semibold text-base hover:opacity-90 transition-opacity">
-              Sign In
+            <Button 
+              type="submit" 
+              disabled={loading}
+              className="w-full h-12 gradient-amber text-primary-foreground font-body font-semibold text-base hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {loading ? "Loading..." : isSignUp ? "Create Account" : "Sign In"}
             </Button>
           </form>
 
           <p className="mt-6 text-center text-sm text-muted-foreground font-body">
+            {isSignUp ? "Already have an account? " : "Don't have an account? "}
+            <button 
+              onClick={() => setIsSignUp(!isSignUp)} 
+              className="text-primary hover:underline font-medium"
+            >
+              {isSignUp ? "Sign In" : "Sign Up"}
+            </button>
+          </p>
+
+          <p className="mt-4 text-center text-sm text-muted-foreground font-body">
             Restaurant owner?{" "}
             <button onClick={() => navigate("/owner/login")} className="text-primary hover:underline font-medium">
               Login here
