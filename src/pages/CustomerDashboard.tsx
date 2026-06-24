@@ -178,19 +178,19 @@ const CustomerDashboard = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="container mx-auto px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
           <div>
-            <h1 className="font-display text-2xl font-bold text-foreground">Restaurant Reviews</h1>
-            <p className="text-sm text-muted-foreground font-body">Discover & share dining experiences</p>
+            <h1 className="font-display text-lg sm:text-2xl font-bold text-foreground">Restaurant Reviews</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground font-body hidden sm:block">Discover &amp; share dining experiences</p>
           </div>
           <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="text-muted-foreground font-body">
-            <LogOut className="w-4 h-4 mr-2" /> Sign Out
+            <LogOut className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Sign Out</span>
           </Button>
         </div>
       </header>
 
-      <main className="container mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <main className="container mx-auto px-3 sm:px-6 py-4 sm:py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8">
           {/* Restaurant List */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">

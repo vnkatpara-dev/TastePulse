@@ -460,31 +460,31 @@ const OwnerDashboard = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="font-display text-2xl font-bold text-foreground">
+        <div className="container mx-auto px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <h1 className="font-display text-lg sm:text-2xl font-bold text-foreground truncate">
               {selectedRestaurant ? selectedRestaurant.name : "Sentiment Dashboard"}
             </h1>
-            <p className="text-sm text-muted-foreground font-body">
+            <p className="text-xs sm:text-sm text-muted-foreground font-body hidden sm:block">
               {selectedRestaurant ? `${selectedRestaurant.cuisine} · Owner View` : "Select a restaurant to view details"}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
             {selectedRestaurant && (
               <>
-<Button variant="outline" size="sm" onClick={() => setIsReportDialogOpen(true)} className="font-body">
-                  <Download className="w-4 h-4 mr-2" /> Download Report
+                <Button variant="outline" size="sm" onClick={() => setIsReportDialogOpen(true)} className="font-body hidden sm:flex">
+                  <Download className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Report</span>
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setSelectedRestaurant(null)} className="font-body">
-                  <X className="w-4 h-4 mr-2" /> View All
+                  <X className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">View All</span>
                 </Button>
               </>
             )}
             <Button variant="default" size="sm" onClick={handleAddRestaurant} className="font-body">
-              <Plus className="w-4 h-4 mr-2" /> Add Restaurant
+              <Plus className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Add Restaurant</span>
             </Button>
             <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="text-muted-foreground font-body">
-              <LogOut className="w-4 h-4 mr-2" /> Sign Out
+              <LogOut className="w-4 h-4" />
             </Button>
           </div>
         </div>
@@ -492,9 +492,9 @@ const OwnerDashboard = () => {
 
       {/* Report Content - This is what gets captured for PDF */}
       <div ref={reportRef} className="bg-background">
-        <main className="container mx-auto px-6 py-8 space-y-8">
+        <main className="container mx-auto px-3 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8">
           {/* Stats Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <StatCard 
               title="Total Reviews of All Customers" 
               value={filteredAnalytics?.totalReviews?.toString() || "0"} 
@@ -522,11 +522,11 @@ const OwnerDashboard = () => {
           </div>
 
           {/* Restaurants Management */}
-          <div className="glass-card rounded-xl p-6 animate-fade-in">
+          <div className="glass-card rounded-xl p-4 sm:p-6 animate-fade-in">
             <h3 className="font-display text-lg font-semibold text-foreground mb-4">
               {selectedRestaurant ? "Restaurant Details" : "My Restaurants"}
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {restaurants.map((restaurant) => (
                 <div 
                   key={restaurant.id} 
@@ -566,14 +566,14 @@ const OwnerDashboard = () => {
           </div>
 
           {/* Charts Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Sentiment Trend */}
-            <div className="lg:col-span-2 glass-card rounded-xl p-6 animate-fade-in">
-              <h3 className="font-display text-lg font-semibold text-foreground mb-4">
+            <div className="lg:col-span-2 glass-card rounded-xl p-4 sm:p-6 animate-fade-in">
+              <h3 className="font-display text-base sm:text-lg font-semibold text-foreground mb-4">
                 {selectedRestaurant ? `${selectedRestaurant.name} - Sentiment Trend` : "Sentiment Trend"}
               </h3>
               {sentimentTrend.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={220}>
                   <LineChart data={sentimentTrend}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(30, 15%, 88%)" />
                     <XAxis dataKey="month" stroke="hsl(30, 5%, 45%)" fontSize={12} />

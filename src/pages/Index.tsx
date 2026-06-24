@@ -49,30 +49,30 @@ const Index = () => {
           </div>
         </div>
 
-        <h1 className="font-display text-5xl md:text-6xl font-bold text-white text-center mb-3 animate-fade-in drop-shadow-lg">
+        <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-bold text-white text-center mb-2 animate-fade-in drop-shadow-lg">
           Taste<span className="text-gradient">Pulse</span>
         </h1>
-        <p className="text-lg text-white/80 font-body text-center max-w-md mb-12 animate-fade-in">
+        <p className="text-base sm:text-lg text-white/80 font-body text-center max-w-sm sm:max-w-md mb-8 sm:mb-12 animate-fade-in px-4">
           Discover What People Really Think
         </p>
 
         {/* Login Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-2xl">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-2xl px-2 sm:px-0">
           <button
             onClick={() => navigate("/owner/login")}
-            className="group relative rounded-2xl p-8 text-left transition-all hover:shadow-2xl overflow-hidden animate-fade-in"
+            className="group relative rounded-2xl p-6 sm:p-8 text-left transition-all hover:shadow-2xl overflow-hidden animate-fade-in"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-amber-600/40 via-orange-600/30 to-transparent rounded-2xl" />
             <div className="absolute inset-0 border border-amber-500/50 rounded-2xl" />
             <div className="absolute inset-0 bg-gradient-to-br from-black/20 to-black/40 rounded-2xl" />
             <div className="absolute inset-0 backdrop-blur-md rounded-2xl" />
             <div className="relative z-10">
-              <div className="w-12 h-12 rounded-xl gradient-amber flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg">
-                <ChefHat className="w-6 h-6 text-primary-foreground" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl gradient-amber flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform shadow-lg">
+                <ChefHat className="w-5 h-5 sm:w-6 sm:h-6 text-primary-foreground" />
               </div>
-              <h2 className="font-display text-2xl font-bold text-white mb-2">Restaurant Owner</h2>
-              <p className="text-sm text-white/90 font-body leading-relaxed">Access analytics dashboard, track sentiment trends, and manage feedback.</p>
-              <div className="flex items-center gap-1.5 mt-6 text-amber-300 text-sm font-semibold font-body group-hover:gap-2 transition-all">
+              <h2 className="font-display text-xl sm:text-2xl font-bold text-white mb-1 sm:mb-2">Restaurant Owner</h2>
+              <p className="text-xs sm:text-sm text-white/90 font-body leading-relaxed">Access analytics dashboard, track sentiment trends, and manage feedback.</p>
+              <div className="flex items-center gap-1.5 mt-4 sm:mt-6 text-amber-300 text-sm font-semibold font-body group-hover:gap-2 transition-all">
                 <BarChart3 className="w-4 h-4" /> View Dashboard →
               </div>
             </div>
@@ -80,19 +80,19 @@ const Index = () => {
 
           <button
             onClick={() => navigate("/customer/login")}
-            className="group relative rounded-2xl p-8 text-left transition-all hover:shadow-2xl overflow-hidden animate-fade-in"
+            className="group relative rounded-2xl p-6 sm:p-8 text-left transition-all hover:shadow-2xl overflow-hidden animate-fade-in"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-orange-500/40 via-amber-500/30 to-transparent rounded-2xl" />
             <div className="absolute inset-0 border border-orange-400/50 rounded-2xl" />
             <div className="absolute inset-0 bg-gradient-to-br from-black/20 to-black/40 rounded-2xl" />
             <div className="absolute inset-0 backdrop-blur-md rounded-2xl" />
             <div className="relative z-10">
-              <div className="w-12 h-12 rounded-xl gradient-amber flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg">
-                <User className="w-6 h-6 text-primary-foreground" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl gradient-amber flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform shadow-lg">
+                <User className="w-5 h-5 sm:w-6 sm:h-6 text-primary-foreground" />
               </div>
-              <h2 className="font-display text-2xl font-bold text-white mb-2">Customer</h2>
-              <p className="text-sm text-white/90 font-body leading-relaxed">Browse restaurants, read reviews, and share your dining experiences.</p>
-              <div className="flex items-center gap-1.5 mt-6 text-amber-300 text-sm font-semibold font-body group-hover:gap-2 transition-all">
+              <h2 className="font-display text-xl sm:text-2xl font-bold text-white mb-1 sm:mb-2">Customer</h2>
+              <p className="text-xs sm:text-sm text-white/90 font-body leading-relaxed">Browse restaurants, read reviews, and share your dining experiences.</p>
+              <div className="flex items-center gap-1.5 mt-4 sm:mt-6 text-amber-300 text-sm font-semibold font-body group-hover:gap-2 transition-all">
                 <MessageSquare className="w-4 h-4" /> Write Reviews →
               </div>
             </div>
