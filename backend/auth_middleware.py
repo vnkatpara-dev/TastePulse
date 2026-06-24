@@ -20,6 +20,19 @@ def initialize_firebase():
     if firebase_initialized:
         return True
     
+    # Try to load service account key from environment variable (useful for cloud hosting)
+    firebase_key_json = os.environ.get('FIREBASE_SERVICE_ACCOUNT_KEY_JSON')
+    if firebase_key_json:
+        try:
+            service_account_info = json.loads(firebase_key_json)
+            cred = credentials.Certificate(service_account_info)
+            firebase_admin.initialize_app(cred)
+            firebase_initialized = True
+            print("Firebase Admin SDK initialized successfully from environment variable")
+            return True
+        except Exception as e:
+            print(f"Failed to initialize Firebase from environment variable: {e}")
+
     # Try to load service account key if it exists
     if os.path.exists(FIREBASE_SERVICE_ACCOUNT_KEY):
         try:
@@ -32,7 +45,7 @@ def initialize_firebase():
             print(f"Failed to initialize Firebase: {e}")
             return False
     else:
-        print(f"Firebase service account key not found at {FIREBASE_SERVICE_ACCOUNT_KEY}")
+        print(f"Firebase service account key not found at {FIREBASE_SERVICE_ACCOUNT_KEY} and env var FIREBASE_SERVICE_ACCOUNT_KEY_JSON is empty.")
         print("Auth will be in bypass mode for development")
         return False
 
