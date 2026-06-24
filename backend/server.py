@@ -1,6 +1,5 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import joblib
 import os
 import json
 from datetime import datetime
@@ -35,6 +34,7 @@ vectorizer = None
 
 try:
     print("Loading model and vectorizer...")
+    import joblib
     model = joblib.load(MODEL_PATH)
     vectorizer = joblib.load(VECTORIZER_PATH)
     print("Model loaded successfully!")
