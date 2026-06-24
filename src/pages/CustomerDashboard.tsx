@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Send, Star, Loader2, Plus, Trash2 } from "lucide-react";
+import { LogOut, Send, Star, Loader2, Plus, Trash2, UserCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -287,8 +287,8 @@ const CustomerDashboard = () => {
                 reviews.map((review) => (
                   <div key={review.id} className="glass-card rounded-xl p-5 animate-fade-in">
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="w-9 h-9 rounded-full gradient-amber flex items-center justify-center text-primary-foreground text-sm font-semibold font-body">
-                        {review.customerName.charAt(0)}
+                      <div className="w-9 h-9 rounded-full gradient-amber flex items-center justify-center text-primary-foreground">
+                        <UserCircle2 className="w-5 h-5" />
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
