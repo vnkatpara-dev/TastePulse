@@ -11,6 +11,19 @@ app = Flask(__name__)
 # Enable CORS for all routes
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
+from auth_middleware import firebase_initialized
+from firebase_admin import firestore
+
+# Initialize Firestore client if Firebase is active
+db = None
+if firebase_initialized:
+    try:
+        db = firestore.client()
+        print("Firestore client initialized successfully!")
+    except Exception as e:
+        print(f"Could not initialize Firestore client: {e}")
+        db = None
+
 # Load model and vectorizer
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "restaurant_sentiment_model.pkl")
 VECTORIZER_PATH = os.path.join(os.path.dirname(__file__), "tfidf_vectorizer.pkl")
@@ -105,15 +118,158 @@ if not os.path.exists(DATA_PATH):
     with open(DATA_PATH, 'w') as f:
         json.dump(initial_data, f, indent=2)
 
+def seed_firestore_if_empty():
+    if db is None:
+        return
+    try:
+        # Check if restaurants collection has any documents
+        docs = list(db.collection('restaurants').limit(1).stream())
+        if len(docs) == 0:
+            print("Seeding Firestore with initial mock data...")
+            seed_data = None
+            if os.path.exists(DATA_PATH):
+                try:
+                    with open(DATA_PATH, 'r') as f:
+                        seed_data = json.load(f)
+                except Exception as e:
+                    print(f"Could not load local reviews.json for seeding: {e}")
+            
+            # If local file is missing, use global initial_data template
+            if not seed_data or 'restaurants' not in seed_data:
+                print("Seeding Firestore using template initial_data...")
+                global initial_data
+                seed_data = initial_data
+                
+            # Seed restaurants
+            for r in seed_data.get('restaurants', []):
+                db.collection('restaurants').document(r['id']).set(r)
+                
+            # Seed reviews
+            for rev in seed_data.get('reviews', []):
+                db.collection('reviews').document(rev['id']).set(rev)
+                
+            print(f"Firestore seeding completed! Seeded {len(seed_data.get('restaurants', []))} restaurants and {len(seed_data.get('reviews', []))} reviews.")
+    except Exception as e:
+        print(f"Error seeding Firestore: {e}")
+
+# Call seed function immediately on server startup
+if db is not None:
+    seed_firestore_if_empty()
+
 def load_data():
-    """Load data from JSON file"""
+    """Load data from Firestore if available, otherwise from local JSON file"""
+    if db is not None:
+        try:
+            # Load reviews
+            reviews_ref = db.collection('reviews')
+            reviews_docs = reviews_ref.stream()
+            reviews = [doc.to_dict() for doc in reviews_docs]
+            
+            # Load restaurants
+            restaurants_ref = db.collection('restaurants')
+            restaurants_docs = restaurants_ref.stream()
+            restaurants = [doc.to_dict() for doc in restaurants_docs]
+            
+            return {
+                "reviews": reviews,
+                "restaurants": restaurants
+            }
+        except Exception as e:
+            print(f"Error loading from Firestore: {e}")
+            # Fall back to local file
+            
+    # Local JSON fallback
     with open(DATA_PATH, 'r') as f:
         return json.load(f)
 
 def save_data(data):
-    """Save data to JSON file"""
-    with open(DATA_PATH, 'w') as f:
-        json.dump(data, f, indent=2)
+    """Save data to local JSON file"""
+    try:
+        with open(DATA_PATH, 'w') as f:
+            json.dump(data, f, indent=2)
+    except Exception as e:
+        print(f"Error saving to local file: {e}")
+
+def add_review_db(review):
+    """Add a review to Firestore and local JSON"""
+    if db is not None:
+        try:
+            db.collection('reviews').document(review['id']).set(review)
+        except Exception as e:
+            print(f"Error adding review to Firestore: {e}")
+    try:
+        db_data = load_data()
+        db_data['reviews'] = [r for r in db_data['reviews'] if r['id'] != review['id']]
+        db_data['reviews'].append(review)
+        save_data(db_data)
+    except Exception as e:
+        print(f"Error saving review locally: {e}")
+
+def delete_review_db(review_id):
+    """Delete a review from Firestore and local JSON"""
+    if db is not None:
+        try:
+            db.collection('reviews').document(review_id).delete()
+        except Exception as e:
+            print(f"Error deleting review from Firestore: {e}")
+    try:
+        db_data = load_data()
+        db_data['reviews'] = [r for r in db_data['reviews'] if r['id'] != review_id]
+        save_data(db_data)
+    except Exception as e:
+        print(f"Error deleting review locally: {e}")
+
+def add_restaurant_db(restaurant):
+    """Add a restaurant to Firestore and local JSON"""
+    if db is not None:
+        try:
+            db.collection('restaurants').document(restaurant['id']).set(restaurant)
+        except Exception as e:
+            print(f"Error adding restaurant to Firestore: {e}")
+    try:
+        db_data = load_data()
+        db_data['restaurants'] = [r for r in db_data['restaurants'] if r['id'] != restaurant['id']]
+        db_data['restaurants'].append(restaurant)
+        save_data(db_data)
+    except Exception as e:
+        print(f"Error saving restaurant locally: {e}")
+
+def delete_restaurant_db(restaurant_id, restaurant_name):
+    """Delete a restaurant and its reviews from Firestore and local JSON"""
+    if db is not None:
+        try:
+            db.collection('restaurants').document(restaurant_id).delete()
+            reviews_ref = db.collection('reviews').where('restaurantName', '==', restaurant_name)
+            docs = reviews_ref.stream()
+            for doc in docs:
+                doc.reference.delete()
+        except Exception as e:
+            print(f"Error deleting restaurant/reviews from Firestore: {e}")
+    try:
+        db_data = load_data()
+        db_data['restaurants'] = [r for r in db_data['restaurants'] if r['id'] != restaurant_id]
+        db_data['reviews'] = [r for r in db_data['reviews'] if r['restaurantName'] != restaurant_name]
+        save_data(db_data)
+    except Exception as e:
+        print(f"Error deleting restaurant locally: {e}")
+
+def update_restaurant_db(restaurant_id, updated_fields):
+    """Update restaurant fields in Firestore and local JSON"""
+    if db is not None:
+        try:
+            db.collection('restaurants').document(restaurant_id).update(updated_fields)
+        except Exception as e:
+            print(f"Error updating restaurant in Firestore: {e}")
+    try:
+        db_data = load_data()
+        for r in db_data['restaurants']:
+            if r['id'] == restaurant_id:
+                for k, v in updated_fields.items():
+                    r[k] = v
+                break
+        save_data(db_data)
+    except Exception as e:
+        print(f"Error updating restaurant locally: {e}")
 
 def calculate_sentiment_score(prediction, confidence=0.8):
     """Convert sentiment prediction to a score between 0 and 1"""
@@ -246,10 +402,8 @@ def add_review():
             'category': data['category']
         }
         
-        # Load existing data and add review
-        db_data = load_data()
-        db_data['reviews'].append(review)
-        save_data(db_data)
+        # Add review using database helper
+        add_review_db(review)
         
         return jsonify(review), 201
     except Exception as e:
@@ -315,10 +469,8 @@ def add_restaurant():
             'totalReviews': 0
         }
         
-        # Load existing data and add restaurant
-        db_data = load_data()
-        db_data['restaurants'].append(restaurant)
-        save_data(db_data)
+        # Add restaurant using database helper
+        add_restaurant_db(restaurant)
         
         return jsonify(restaurant), 201
     except Exception as e:
@@ -340,18 +492,9 @@ def delete_restaurant(restaurant_id):
         
         if not restaurant_name:
             return jsonify({'error': 'Restaurant not found'}), 404
-        
-        # Find and remove the restaurant
-        initial_length = len(db_data['restaurants'])
-        db_data['restaurants'] = [r for r in db_data['restaurants'] if r['id'] != restaurant_id]
-        
-        if len(db_data['restaurants']) == initial_length:
-            return jsonify({'error': 'Restaurant not found'}), 404
-        
-        # Also remove all reviews for this restaurant
-        db_data['reviews'] = [r for r in db_data['reviews'] if r['restaurantName'] != restaurant_name]
-        
-        save_data(db_data)
+            
+        # Delete restaurant and associated reviews using database helper
+        delete_restaurant_db(restaurant_id, restaurant_name)
         
         return jsonify({'message': 'Restaurant deleted successfully'}), 200
     except Exception as e:
@@ -366,21 +509,24 @@ def update_restaurant(restaurant_id):
         # Load existing data
         db_data = load_data()
         
-        # Find and update the restaurant
+        # Verify the restaurant exists
         restaurant_found = False
         for restaurant in db_data['restaurants']:
             if restaurant['id'] == restaurant_id:
-                if 'name' in data:
-                    restaurant['name'] = data['name']
-                if 'cuisine' in data:
-                    restaurant['cuisine'] = data['cuisine']
                 restaurant_found = True
                 break
         
         if not restaurant_found:
             return jsonify({'error': 'Restaurant not found'}), 404
-        
-        save_data(db_data)
+            
+        # Update restaurant fields using database helper
+        updated_fields = {}
+        if 'name' in data:
+            updated_fields['name'] = data['name']
+        if 'cuisine' in data:
+            updated_fields['cuisine'] = data['cuisine']
+            
+        update_restaurant_db(restaurant_id, updated_fields)
         
         return jsonify({'message': 'Restaurant updated successfully'}), 200
     except Exception as e:
@@ -467,22 +613,6 @@ def get_category_breakdown():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/reviews/<review_id>', methods=['DELETE'])
-def delete_review(review_id):
-    """Delete a review"""
-    try:
-        db_data = load_data()
-        initial_length = len(db_data['reviews'])
-        db_data['reviews'] = [r for r in db_data['reviews'] if r['id'] != review_id]
-        
-        if len(db_data['reviews']) == initial_length:
-            return jsonify({'error': 'Review not found'}), 404
-        
-        save_data(db_data)
-        return jsonify({'message': 'Review deleted successfully'}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
 @app.route('/api/dish-insights', methods=['GET'])
 def get_dish_insights():
     """Get sentiment breakdown for specific dishes and aspects"""
@@ -553,6 +683,19 @@ def get_dish_insights():
         # Sort by total mentions descending
         result.sort(key=lambda x: x['count'], reverse=True)
         return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/reviews/<review_id>', methods=['DELETE'])
+def delete_review(review_id):
+    """Delete a review"""
+    try:
+        db_data = load_data()
+        if review_id not in [r['id'] for r in db_data['reviews']]:
+            return jsonify({'error': 'Review not found'}), 404
+            
+        delete_review_db(review_id)
+        return jsonify({'message': 'Review deleted successfully'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
