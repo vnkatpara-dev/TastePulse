@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ChefHat, UtensilsCrossed, BarChart3, MessageSquare, Zap } from "lucide-react";
+import { ChefHat, UtensilsCrossed, BarChart3, MessageSquare, User } from "lucide-react";
 import restaurantHero from "@/assets/restaurant-hero.jpg";
 
 const Index = () => {
@@ -41,7 +41,7 @@ const Index = () => {
             
             {/* Fork icon with pulse effect */}
             <div className="relative z-10">
-              <Zap className="w-10 h-10 text-white drop-shadow-lg fill-white" />
+              <UtensilsCrossed className="w-10 h-10 text-white drop-shadow-lg" />
             </div>
             
             {/* Decorative pulse rings */}
@@ -88,7 +88,7 @@ const Index = () => {
             <div className="absolute inset-0 backdrop-blur-md rounded-2xl" />
             <div className="relative z-10">
               <div className="w-12 h-12 rounded-xl gradient-amber flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg">
-                <UtensilsCrossed className="w-6 h-6 text-primary-foreground" />
+                <User className="w-6 h-6 text-primary-foreground" />
               </div>
               <h2 className="font-display text-2xl font-bold text-white mb-2">Customer</h2>
               <p className="text-sm text-white/90 font-body leading-relaxed">Browse restaurants, read reviews, and share your dining experiences.</p>
