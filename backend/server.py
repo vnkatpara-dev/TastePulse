@@ -51,6 +51,22 @@ def simple_sentiment(text):
 if not os.path.exists(DATA_PATH):
     initial_data = {
         "reviews": [
+            {"id": "101", "customerName": "Alice M.", "restaurantName": "The Golden Fork", "rating": 5, "text": "Fabulous lasagna and wonderful summer salad! Service was quick.", "sentiment": "positive", "sentimentScore": 0.95, "date": "2025-06-12", "category": "Food Quality"},
+            {"id": "102", "customerName": "Bob T.", "restaurantName": "Spice Route", "rating": 3, "text": "The chicken tikka was okay, but the service was extremely slow.", "sentiment": "neutral", "sentimentScore": 0.45, "date": "2025-06-25", "category": "Service"},
+            {"id": "103", "customerName": "Carol S.", "restaurantName": "Ocean Breeze", "rating": 2, "text": "Found a piece of plastic in the crab cake. Disgusting hygiene standards.", "sentiment": "negative", "sentimentScore": 0.1, "date": "2025-07-08", "category": "Hygiene"},
+            {"id": "104", "customerName": "David L.", "restaurantName": "The Golden Fork", "rating": 4, "text": "Great wine list and lovely view. The steak was cooked perfectly.", "sentiment": "positive", "sentimentScore": 0.88, "date": "2025-07-22", "category": "Ambiance"},
+            {"id": "105", "customerName": "Emma W.", "restaurantName": "Spice Route", "rating": 5, "text": "Unbelievable flavors! The lamb vindaloo was out of this world.", "sentiment": "positive", "sentimentScore": 0.96, "date": "2025-08-14", "category": "Food Quality"},
+            {"id": "106", "customerName": "Frank H.", "restaurantName": "Ocean Breeze", "rating": 4, "text": "Nice dining by the water. Good oysters and pleasant service.", "sentiment": "positive", "sentimentScore": 0.85, "date": "2025-08-28", "category": "Ambiance"},
+            {"id": "107", "customerName": "Grace K.", "restaurantName": "The Golden Fork", "rating": 1, "text": "Rude waiters and overpriced wine. Will never return.", "sentiment": "negative", "sentimentScore": 0.05, "date": "2025-09-05", "category": "Service"},
+            {"id": "108", "customerName": "Henry P.", "restaurantName": "Spice Route", "rating": 4, "text": "Reliable Indian food, very clean and friendly staff.", "sentiment": "positive", "sentimentScore": 0.89, "date": "2025-09-19", "category": "Hygiene"},
+            {"id": "109", "customerName": "Irene D.", "restaurantName": "Ocean Breeze", "rating": 3, "text": "Portion sizes were too small for the price. Food was decent.", "sentiment": "neutral", "sentimentScore": 0.5, "date": "2025-10-10", "category": "Value"},
+            {"id": "110", "customerName": "Jack R.", "restaurantName": "The Golden Fork", "rating": 5, "text": "Best pasta I've had in years! Absolutely amazing restaurant.", "sentiment": "positive", "sentimentScore": 0.97, "date": "2025-10-31", "category": "Food Quality"},
+            {"id": "111", "customerName": "Karen B.", "restaurantName": "Spice Route", "rating": 2, "text": "Very bland food. I expected authentic spices, but was let down.", "sentiment": "negative", "sentimentScore": 0.2, "date": "2025-11-12", "category": "Food Quality"},
+            {"id": "112", "customerName": "Leo M.", "restaurantName": "Ocean Breeze", "rating": 5, "text": "Super fresh seafood, fast service, beautiful decor.", "sentiment": "positive", "sentimentScore": 0.94, "date": "2025-11-28", "category": "Food Quality"},
+            {"id": "113", "customerName": "Sarah J.", "restaurantName": "The Golden Fork", "rating": 4, "text": "Holiday menu was delicious. The noise level was quite high though.", "sentiment": "positive", "sentimentScore": 0.78, "date": "2025-12-15", "category": "Ambiance"},
+            {"id": "114", "customerName": "Mike D.", "restaurantName": "Spice Route", "rating": 5, "text": "Best butter chicken in town! Extremely friendly servers.", "sentiment": "positive", "sentimentScore": 0.93, "date": "2025-12-24", "category": "Service"},
+            {"id": "115", "customerName": "Nancy C.", "restaurantName": "Ocean Breeze", "rating": 2, "text": "Overpriced for what it is. Wait time was over an hour.", "sentiment": "negative", "sentimentScore": 0.15, "date": "2026-01-08", "category": "Value"},
+            {"id": "116", "customerName": "Oliver K.", "restaurantName": "The Golden Fork", "rating": 3, "text": "Average Italian food. The service was polite but slow.", "sentiment": "neutral", "sentimentScore": 0.48, "date": "2026-01-20", "category": "Service"},
             {"id": "1", "customerName": "Alice M.", "restaurantName": "The Golden Fork", "rating": 5, "text": "Absolutely stunning food and ambiance. The truffle pasta was divine!", "sentiment": "positive", "sentimentScore": 0.95, "date": "2026-02-18", "category": "Food Quality"},
             {"id": "2", "customerName": "Bob T.", "restaurantName": "The Golden Fork", "rating": 2, "text": "Service was incredibly slow. Waited 45 minutes for appetizers.", "sentiment": "negative", "sentimentScore": 0.15, "date": "2026-02-17", "category": "Service"},
             {"id": "3", "customerName": "Carol S.", "restaurantName": "The Golden Fork", "rating": 4, "text": "Great food but the noise level made conversation difficult.", "sentiment": "neutral", "sentimentScore": 0.6, "date": "2026-02-16", "category": "Ambiance"},
@@ -63,11 +79,27 @@ if not os.path.exists(DATA_PATH):
             {"id": "10", "customerName": "Jack R.", "restaurantName": "The Golden Fork", "rating": 2, "text": "Reservation was lost. Had to wait 30 minutes despite booking ahead.", "sentiment": "negative", "sentimentScore": 0.12, "date": "2026-02-09", "category": "Service"},
             {"id": "11", "customerName": "Karen B.", "restaurantName": "Ocean Breeze", "rating": 5, "text": "The sunset view paired with amazing sushi. Unforgettable experience!", "sentiment": "positive", "sentimentScore": 0.94, "date": "2026-02-08", "category": "Ambiance"},
             {"id": "12", "customerName": "Leo M.", "restaurantName": "Spice Route", "rating": 3, "text": "Decent food but nothing special. Expected more given the hype.", "sentiment": "neutral", "sentimentScore": 0.5, "date": "2026-02-07", "category": "Food Quality"},
+            {"id": "117", "customerName": "Penny L.", "restaurantName": "Spice Route", "rating": 4, "text": "Spicy but delicious. The garlic naan was super soft.", "sentiment": "positive", "sentimentScore": 0.87, "date": "2026-03-15", "category": "Food Quality"},
+            {"id": "118", "customerName": "Quincy M.", "restaurantName": "Ocean Breeze", "rating": 4, "text": "Wonderful atmosphere. Seafood platter is huge and tasty.", "sentiment": "positive", "sentimentScore": 0.91, "date": "2026-03-29", "category": "Food Quality"},
+            {"id": "119", "customerName": "Rachel G.", "restaurantName": "The Golden Fork", "rating": 2, "text": "The table was dirty and service was dismissive. Disappointing.", "sentiment": "negative", "sentimentScore": 0.18, "date": "2026-04-10", "category": "Hygiene"},
+            {"id": "120", "customerName": "Sam W.", "restaurantName": "Spice Route", "rating": 5, "text": "Consistent quality and warm hospitality. Love the samosas.", "sentiment": "positive", "sentimentScore": 0.94, "date": "2026-04-25", "category": "Service"},
+            {"id": "121", "customerName": "Tina F.", "restaurantName": "Ocean Breeze", "rating": 3, "text": "Decent food, but the music was too loud. Hard to talk.", "sentiment": "neutral", "sentimentScore": 0.46, "date": "2026-05-05", "category": "Ambiance"},
+            {"id": "122", "customerName": "Victor P.", "restaurantName": "The Golden Fork", "rating": 5, "text": "Truffle pasta is a must-try. Top tier food quality.", "sentiment": "positive", "sentimentScore": 0.96, "date": "2026-05-18", "category": "Food Quality"},
+            {"id": "201", "customerName": "Guest Diner", "restaurantName": "Burger Shack", "rating": 5, "text": "Best burgers in town! The brioche bun was fresh and the patty was incredibly juicy.", "sentiment": "positive", "sentimentScore": 0.96, "date": "2026-03-10", "category": "Food Quality"},
+            {"id": "202", "customerName": "Alice M.", "restaurantName": "Burger Shack", "rating": 2, "text": "The fries were cold and soggy. Service took way too long for fast food.", "sentiment": "negative", "sentimentScore": 0.12, "date": "2026-03-24", "category": "Service"},
+            {"id": "203", "customerName": "Bob T.", "restaurantName": "Burger Shack", "rating": 4, "text": "Decent burger for the price. Fast and clean.", "sentiment": "positive", "sentimentScore": 0.82, "date": "2026-04-12", "category": "Value"},
+            {"id": "204", "customerName": "Carol S.", "restaurantName": "Burger Shack", "rating": 2, "text": "Tables were dirty and sticky. Staff was completely indifferent.", "sentiment": "negative", "sentimentScore": 0.15, "date": "2026-05-18", "category": "Hygiene"},
+            {"id": "205", "customerName": "David L.", "restaurantName": "Sakura Sushi", "rating": 5, "text": "Incredibly fresh sushi! The chef was amazing and interactive.", "sentiment": "positive", "sentimentScore": 0.97, "date": "2026-04-05", "category": "Food Quality"},
+            {"id": "206", "customerName": "Emma W.", "restaurantName": "Sakura Sushi", "rating": 3, "text": "Decent rolls, but it was way too expensive for what they served.", "sentiment": "neutral", "sentimentScore": 0.45, "date": "2026-04-20", "category": "Value"},
+            {"id": "207", "customerName": "Frank H.", "restaurantName": "Sakura Sushi", "rating": 5, "text": "Beautiful atmosphere, quiet music, perfect for date night.", "sentiment": "positive", "sentimentScore": 0.94, "date": "2026-05-12", "category": "Ambiance"},
+            {"id": "208", "customerName": "Grace K.", "restaurantName": "Sakura Sushi", "rating": 2, "text": "Wait time for sushi was over 50 minutes. Not worth the wait.", "sentiment": "negative", "sentimentScore": 0.18, "date": "2026-05-30", "category": "Service"}
         ],
         "restaurants": [
             {"id": "1", "name": "The Golden Fork", "cuisine": "Italian", "averageRating": 3.8, "totalReviews": 234},
             {"id": "2", "name": "Spice Route", "cuisine": "Indian", "averageRating": 4.1, "totalReviews": 189},
-            {"id": "3", "name": "Ocean Breeze", "cuisine": "Seafood", "averageRating": 4.3, "totalReviews": 156}
+            {"id": "3", "name": "Ocean Breeze", "cuisine": "Seafood", "averageRating": 4.3, "totalReviews": 156},
+            {"id": "burger-shack-id", "name": "Burger Shack", "cuisine": "Fast Food", "averageRating": 3.25, "totalReviews": 4},
+            {"id": "sakura-sushi-id", "name": "Sakura Sushi", "cuisine": "Japanese", "averageRating": 3.75, "totalReviews": 4}
         ]
     }
     with open(DATA_PATH, 'w') as f:
@@ -448,6 +480,79 @@ def delete_review(review_id):
         
         save_data(db_data)
         return jsonify({'message': 'Review deleted successfully'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/dish-insights', methods=['GET'])
+def get_dish_insights():
+    """Get sentiment breakdown for specific dishes and aspects"""
+    try:
+        restaurant = request.args.get('restaurant')
+        start_date = request.args.get('startDate')
+        end_date = request.args.get('endDate')
+        
+        data = load_data()
+        reviews = data['reviews']
+        
+        # Predefined mapping of categories/dishes to scan
+        DISHES_AND_ASPECTS = {
+            'Pasta & Lasagna': ['pasta', 'lasagna', 'spaghetti', 'truffle pasta', 'ravioli', 'macaroni'],
+            'Steak & Beef': ['steak', 'beef', 'ribeye', 'sirloin', 'fillet'],
+            'Seafood & Lobster': ['lobster', 'bisque', 'seafood', 'crab', 'fish', 'oysters', 'sushi'],
+            'Indian Cuisine': ['chicken', 'tikka', 'vindaloo', 'curry', 'samosa', 'naan', 'indian'],
+            'Coffee & Pastries': ['coffee', 'pastry', 'pastries', 'cappuccino', 'latte', 'espresso'],
+            'Service Quality': ['service', 'waiter', 'waitress', 'staff', 'server', 'reservation'],
+            'Ambiance & Music': ['ambiance', 'atmosphere', 'decor', 'noise', 'view', 'music'],
+            'Value & Pricing': ['price', 'overpriced', 'value', 'expensive', 'cost', 'bill'],
+            'Hygiene Standards': ['hygiene', 'dirty', 'hair', 'cleanliness', 'clean']
+        }
+        
+        # Initialize insights structure
+        insights = {}
+        for name in DISHES_AND_ASPECTS:
+            insights[name] = {'positive': 0, 'negative': 0, 'neutral': 0}
+            
+        for r in reviews:
+            # Filter by restaurant if provided
+            if restaurant and r.get('restaurantName') != restaurant:
+                continue
+                
+            # Filter by date if provided
+            review_date = r.get('date', '')
+            if start_date and review_date < start_date:
+                continue
+            if end_date and review_date > end_date:
+                continue
+                
+            text_lower = r.get('text', '').lower()
+            sentiment = r.get('sentiment', 'neutral')
+            if sentiment not in ['positive', 'negative', 'neutral']:
+                sentiment = 'neutral'
+                
+            # Check keywords for each group
+            for group_name, keywords in DISHES_AND_ASPECTS.items():
+                matched = False
+                for kw in keywords:
+                    if kw in text_lower:
+                        matched = True
+                        break
+                if matched:
+                    insights[group_name][sentiment] += 1
+                    
+        # Format response
+        result = []
+        for name, counts in insights.items():
+            total = counts['positive'] + counts['negative'] + counts['neutral']
+            if total > 0:
+                result.append({
+                    'name': name,
+                    'count': total,
+                    'sentiment': counts
+                })
+                
+        # Sort by total mentions descending
+        result.sort(key=lambda x: x['count'], reverse=True)
+        return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

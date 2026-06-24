@@ -4,7 +4,9 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup
 } from "firebase/auth";
 import { auth } from "../lib/firebase";
 
@@ -14,6 +16,7 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string, role: "owner" | "customer") => Promise<void>;
   signUp: (email: string, password: string, role: "owner" | "customer") => Promise<void>;
+  signInWithGoogle: (role: "owner" | "customer") => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -71,6 +74,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setRole(selectedRole);
   };
 
+  const signInWithGoogle = async (selectedRole: "owner" | "customer") => {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({
+      prompt: "select_account"
+    });
+    const result = await signInWithPopup(auth, provider);
+    if (result.user) {
+      localStorage.setItem(`user_role_${result.user.uid}`, selectedRole);
+      setRole(selectedRole);
+    }
+  };
+
   const logout = async () => {
     if (user) {
       localStorage.removeItem(`user_role_${user.uid}`);
@@ -80,7 +95,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, role, loading, signIn, signUp, logout }}>
+    <AuthContext.Provider value={{ user, role, loading, signIn, signUp, signInWithGoogle, logout }}>
       {!loading && children}
     </AuthContext.Provider>
   );

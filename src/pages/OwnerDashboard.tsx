@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from "recharts";
-import { MessageSquare, TrendingUp, ThumbsUp, ThumbsDown, LogOut, Star, Loader2, Plus, Pencil, Trash2, X, Eye, Download, Lightbulb } from "lucide-react";
+import { MessageSquare, TrendingUp, ThumbsUp, ThumbsDown, LogOut, Star, Loader2, Plus, Pencil, Trash2, X, Eye, Download, Lightbulb, ChefHat, AlertTriangle, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import StatCard from "@/components/StatCard";
 import SentimentBadge from "@/components/SentimentBadge";
 import StarRating from "@/components/StarRating";
-import { getAnalytics, getReviews, getSentimentTrend, getCategoryBreakdown, getRestaurants, addRestaurant, deleteRestaurant, updateRestaurant, deleteReview, Review, Analytics, SentimentTrend, CategoryBreakdown, Restaurant } from "@/services/api";
+import { getAnalytics, getReviews, getSentimentTrend, getCategoryBreakdown, getRestaurants, addRestaurant, deleteRestaurant, updateRestaurant, deleteReview, getDishInsights, Review, Analytics, SentimentTrend, CategoryBreakdown, Restaurant, DishInsight } from "@/services/api";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -83,6 +83,26 @@ const OwnerDashboard = () => {
   
   // Selected restaurant state
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
+
+  // Dish insights state
+  const [dishInsights, setDishInsights] = useState<DishInsight[]>([]);
+  const [isInsightsLoading, setIsInsightsLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchInsights = async () => {
+      try {
+        setIsInsightsLoading(true);
+        const data = await getDishInsights(selectedRestaurant?.name || undefined);
+        setDishInsights(data);
+      } catch (error) {
+        console.error("Failed to fetch dish insights:", error);
+      } finally {
+        setIsInsightsLoading(false);
+      }
+    };
+    
+    fetchInsights();
+  }, [selectedRestaurant]);
 
   const fetchData = async () => {
     try {
@@ -335,6 +355,79 @@ const OwnerDashboard = () => {
         });
       }
 
+      // Add dish insights recommendations to the PDF
+      const activePlans: { name: string; text: string; severity: string }[] = [];
+      dishInsights.forEach((insight) => {
+        const negRatio = insight.sentiment.negative / insight.count;
+        if (negRatio >= 0.25 || insight.sentiment.negative > insight.sentiment.positive) {
+          let actionText = "";
+          let severity = "medium";
+          
+          if (insight.name === "Pasta & Lasagna") {
+            actionText = "Lasagna and pasta texture complaints. Task kitchen staff to verify noodle firmness and boiling timings.";
+            severity = "medium";
+          } else if (insight.name === "Service Quality") {
+            actionText = "Hostess reservation errors & slow serving speed. Review weekend staffing levels & booking desk processes.";
+            severity = "high";
+          } else if (insight.name === "Value & Pricing") {
+            actionText = "Concerns over high pricing and portion sizes. Consider creating multi-course combos or slightly increasing plate sizes.";
+            severity = "medium";
+          } else if (insight.name === "Hygiene Standards") {
+            actionText = "Urgent hygiene complaints. Conduct an immediate walk-through of the main washing line and enforce hairnet policies.";
+            severity = "high";
+          } else if (insight.name === "Seafood & Lobster") {
+            actionText = "Seafood saltiness/freshness complaints. Audit storage temperatures and supplier batch logs.";
+            severity = "high";
+          } else {
+            actionText = `Quality issues detected. Perform kitchen or service review focusing on guest complaints for ${insight.name}.`;
+            severity = "medium";
+          }
+          
+          activePlans.push({ name: insight.name, text: actionText, severity });
+        }
+      });
+
+      if (activePlans.length > 0) {
+        // If there wasn't a suggestions page created yet, create one
+        if (suggestions.length === 0) {
+          pdf.addPage();
+          pdf.setFontSize(16);
+          pdf.setTextColor(40, 40, 40);
+          pdf.text("Operational Action Plans & Suggestions", 15, 20);
+        } else {
+          // If a page existed, start a fresh page for menu action plans
+          pdf.addPage();
+          pdf.setFontSize(16);
+          pdf.setTextColor(40, 40, 40);
+          pdf.text("Operational Action Plans (Menu & Aspects)", 15, 20);
+        }
+        
+        let yPos = 35;
+        activePlans.forEach((plan, index) => {
+          if (yPos > 270) {
+            pdf.addPage();
+            yPos = 20;
+          }
+          
+          // Color based on severity
+          if (plan.severity === 'high') {
+            pdf.setTextColor(200, 0, 0);
+          } else {
+            pdf.setTextColor(200, 100, 0);
+          }
+          
+          pdf.setFontSize(11);
+          pdf.text(`${index + 1}. ${plan.name} (${plan.severity.toUpperCase()}):`, 15, yPos);
+          yPos += 6;
+          
+          pdf.setFontSize(10);
+          pdf.setTextColor(60, 60, 60);
+          const lines = pdf.splitTextToSize(plan.text, 170);
+          pdf.text(lines, 20, yPos);
+          yPos += lines.length * 5 + 5;
+        });
+      }
+
       // Add footer
       const date = new Date().toLocaleDateString();
       pdf.setFontSize(8);
@@ -538,6 +631,145 @@ const OwnerDashboard = () => {
             ) : (
               <div className="h-[280px] flex items-center justify-center text-muted-foreground">
                 No category data available
+              </div>
+            )}
+          </div>
+
+          {/* Menu & Aspect Intelligence */}
+          <div className="glass-card rounded-xl p-6 animate-fade-in space-y-6">
+            <div>
+              <h3 className="font-display text-lg font-semibold text-foreground flex items-center gap-2">
+                <ChefHat className="w-5 h-5 text-primary" />
+                Menu & Aspect Intelligence
+              </h3>
+              <p className="text-sm text-muted-foreground font-body">
+                Detailed sentiment breakdown and automated operational recommendations for specific menu items and operational aspects
+              </p>
+            </div>
+
+            {isInsightsLoading ? (
+              <div className="h-[200px] flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : dishInsights.length > 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Visual list with progress bars */}
+                <div className="lg:col-span-2 space-y-4">
+                  {dishInsights.map((insight) => {
+                    const total = insight.count;
+                    const posPercent = Math.round((insight.sentiment.positive / total) * 100);
+                    const negPercent = Math.round((insight.sentiment.negative / total) * 100);
+                    const neuPercent = 100 - posPercent - negPercent;
+                    
+                    return (
+                      <div key={insight.name} className="p-4 rounded-lg bg-background/40 border border-border/40 space-y-2">
+                        <div className="flex items-center justify-between font-body text-sm">
+                          <span className="font-semibold text-foreground">{insight.name}</span>
+                          <span className="text-xs text-muted-foreground">{total} mentions</span>
+                        </div>
+                        {/* Stacked Progress Bar */}
+                        <div className="h-3 w-full rounded-full overflow-hidden flex bg-muted">
+                          {posPercent > 0 && (
+                            <div 
+                              style={{ width: `${posPercent}%` }} 
+                              className="bg-emerald-500 h-full transition-all" 
+                              title={`Positive: ${posPercent}%`}
+                            />
+                          )}
+                          {neuPercent > 0 && (
+                            <div 
+                              style={{ width: `${neuPercent}%` }} 
+                              className="bg-amber-500 h-full transition-all" 
+                              title={`Neutral: ${neuPercent}%`}
+                            />
+                          )}
+                          {negPercent > 0 && (
+                            <div 
+                              style={{ width: `${negPercent}%` }} 
+                              className="bg-red-500 h-full transition-all" 
+                              title={`Negative: ${negPercent}%`}
+                            />
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between text-xxs font-body text-muted-foreground pt-1 flex-wrap gap-2">
+                          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Positive: {posPercent}%</span>
+                          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Neutral: {neuPercent}%</span>
+                          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500" /> Negative: {negPercent}%</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Recommendations Plan */}
+                <div className="space-y-4">
+                  <div className="p-5 rounded-xl bg-card border border-border/50 h-full shadow-sm flex flex-col">
+                    <h4 className="font-display font-semibold text-foreground text-sm flex items-center gap-2 mb-3 shrink-0">
+                      <Lightbulb className="w-4 h-4 text-amber-500" />
+                      Operational Action Plan
+                    </h4>
+                    <div className="space-y-3 font-body text-xs text-muted-foreground flex-1 overflow-y-auto max-h-[380px] pr-1">
+                      {/* Scan insights for critical values */}
+                      {(() => {
+                        const plans: React.ReactNode[] = [];
+                        dishInsights.forEach((insight) => {
+                          const negRatio = insight.sentiment.negative / insight.count;
+                          
+                          if (negRatio >= 0.25 || insight.sentiment.negative > insight.sentiment.positive) {
+                            let actionText = "";
+                            let severity: "high" | "medium" = "medium";
+                            
+                            if (insight.name === "Pasta & Lasagna") {
+                              actionText = "Lasagna and pasta texture complaints. Task kitchen staff to verify noodle firmness and boiling timings.";
+                              severity = "medium";
+                            } else if (insight.name === "Service Quality") {
+                              actionText = "Hostess reservation errors & slow serving speed. Review weekend staffing levels & booking desk processes.";
+                              severity = "high";
+                            } else if (insight.name === "Value & Pricing") {
+                              actionText = "Concerns over high pricing and portion sizes. Consider creating multi-course combos or slightly increasing plate sizes.";
+                              severity = "medium";
+                            } else if (insight.name === "Hygiene Standards") {
+                              actionText = "Urgent hygiene complaints. Conduct an immediate walk-through of the main washing line and enforce hairnet policies.";
+                              severity = "high";
+                            } else if (insight.name === "Seafood & Lobster") {
+                              actionText = "Seafood saltiness/freshness complaints. Audit storage temperatures and supplier batch logs.";
+                              severity = "high";
+                            } else {
+                              actionText = `Quality issues detected. Perform kitchen or service review focusing on guest complaints for ${insight.name}.`;
+                              severity = "medium";
+                            }
+                            
+                            plans.push(
+                              <div key={insight.name} className={`p-3 rounded border flex flex-col gap-1 transition-all hover:shadow-sm ${
+                                severity === 'high' ? 'bg-red-50/80 border-red-200 text-red-900' : 'bg-orange-50/80 border-orange-200 text-orange-950'
+                              }`}>
+                                <div className="flex items-center justify-between font-semibold text-xs">
+                                  <span>{insight.name}</span>
+                                  <span className={`text-xxs px-1.5 py-0.5 rounded uppercase font-bold tracking-wider ${
+                                    severity === 'high' ? 'bg-red-200 text-red-800' : 'bg-orange-200 text-orange-800'
+                                  }`}>{severity === 'high' ? 'Critical' : 'Attention'}</span>
+                                </div>
+                                <p className="text-xxs opacity-90 leading-relaxed">{actionText}</p>
+                              </div>
+                            );
+                          }
+                        });
+                        
+                        return plans.length > 0 ? plans : (
+                          <div className="text-center py-12 text-emerald-600 font-semibold flex flex-col items-center justify-center gap-2 h-full">
+                            <CheckCircle className="w-10 h-10 text-emerald-500" />
+                            <span className="text-sm">All Monitored Aspects Healthy</span>
+                            <span className="text-xxs font-normal opacity-85">Mentions and customer feedback are in healthy margins!</span>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="h-[200px] flex items-center justify-center text-muted-foreground font-body text-sm border border-dashed border-border rounded-lg">
+                No menu or aspect mentions found in the reviews yet
               </div>
             )}
           </div>
