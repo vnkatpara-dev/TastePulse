@@ -326,3 +326,86 @@ export const getDishInsights = async (restaurant?: string, startDate?: string, e
 
   return response.json();
 };
+
+// ─── Churn Risk ───────────────────────────────────────────────────────────────
+
+export interface ChurnRisk {
+  customerName: string;
+  lastVisit: string;
+  lastRating: number;
+  lastSentiment: 'positive' | 'negative' | 'neutral';
+  lastReviewText: string;
+  churnScore: number;
+  riskLevel: 'high' | 'medium' | 'low';
+  daysSinceVisit: number;
+  totalReviews: number;
+  priorPositives: number;
+}
+
+export const getChurnRisks = async (restaurant?: string): Promise<ChurnRisk[]> => {
+  const headers = await getAuthHeaders();
+  const params = new URLSearchParams();
+  if (restaurant) params.append('restaurant', restaurant);
+  const queryString = params.toString();
+  const url = `${API_BASE_URL}/churn-risk${queryString ? '?' + queryString : ''}`;
+  const response = await fetch(url, { headers });
+  if (!response.ok) throw new Error('Failed to fetch churn risks');
+  return response.json();
+};
+
+// ─── Menu Lifecycle ───────────────────────────────────────────────────────────
+
+export interface MenuLifecycleWeek {
+  week: string;
+  positiveRatio: number;
+  mentions: number;
+  positive: number;
+  negative: number;
+  neutral: number;
+}
+
+export interface MenuLifecycleItem {
+  name: string;
+  weeks: MenuLifecycleWeek[];
+  trend: 'rising' | 'stable' | 'declining';
+  momentum: number;
+  currentPositiveRatio: number;
+  totalMentions: number;
+}
+
+export const getMenuLifecycle = async (restaurant?: string): Promise<MenuLifecycleItem[]> => {
+  const headers = await getAuthHeaders();
+  const params = new URLSearchParams();
+  if (restaurant) params.append('restaurant', restaurant);
+  const queryString = params.toString();
+  const url = `${API_BASE_URL}/menu-lifecycle${queryString ? '?' + queryString : ''}`;
+  const response = await fetch(url, { headers });
+  if (!response.ok) throw new Error('Failed to fetch menu lifecycle');
+  return response.json();
+};
+
+// ─── Competitor Benchmark ─────────────────────────────────────────────────────
+
+export interface BenchmarkDimensions {
+  foodQuality: number;
+  service: number;
+  hygiene: number;
+  value: number;
+  ambiance: number;
+}
+
+export interface CompetitorBenchmarkItem {
+  name: string;
+  cuisine: string;
+  totalReviews: number;
+  dimensions: BenchmarkDimensions;
+  overallScore: number;
+  averageRating: number;
+}
+
+export const getCompetitorBenchmark = async (): Promise<CompetitorBenchmarkItem[]> => {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/competitor-benchmark`, { headers });
+  if (!response.ok) throw new Error('Failed to fetch competitor benchmark');
+  return response.json();
+};

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from "recharts";
-import { MessageSquare, TrendingUp, ThumbsUp, ThumbsDown, LogOut, Star, Loader2, Plus, Pencil, Trash2, X, Eye, Download, Lightbulb, ChefHat, AlertTriangle, CheckCircle } from "lucide-react";
+import { MessageSquare, TrendingUp, ThumbsUp, ThumbsDown, LogOut, Star, Loader2, Plus, Pencil, Trash2, X, Download, Lightbulb, ChefHat, AlertTriangle, CheckCircle, Users, BarChart2, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,11 @@ import { Label } from "@/components/ui/label";
 import StatCard from "@/components/StatCard";
 import SentimentBadge from "@/components/SentimentBadge";
 import StarRating from "@/components/StarRating";
-import { getAnalytics, getReviews, getSentimentTrend, getCategoryBreakdown, getRestaurants, addRestaurant, deleteRestaurant, updateRestaurant, deleteReview, getDishInsights, Review, Analytics, SentimentTrend, CategoryBreakdown, Restaurant, DishInsight } from "@/services/api";
+import ChurnWarningPanel from "@/components/ChurnWarningPanel";
+import MenuLifecycleChart from "@/components/MenuLifecycleChart";
+import CompetitorBenchmark from "@/components/CompetitorBenchmark";
+import { getAnalytics, getReviews, getSentimentTrend, getCategoryBreakdown, getRestaurants, addRestaurant, deleteRestaurant, updateRestaurant, deleteReview, getDishInsights, getChurnRisks, getMenuLifecycle, getCompetitorBenchmark, Review, Analytics, SentimentTrend, CategoryBreakdown, Restaurant, DishInsight, ChurnRisk, MenuLifecycleItem, CompetitorBenchmarkItem } from "@/services/api";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -59,6 +63,7 @@ const getCategorySuggestions = (categoryData: CategoryBreakdown[]): { category: 
 
 const OwnerDashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const reportRef = useRef<HTMLDivElement>(null);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -88,6 +93,14 @@ const OwnerDashboard = () => {
   const [dishInsights, setDishInsights] = useState<DishInsight[]>([]);
   const [isInsightsLoading, setIsInsightsLoading] = useState(false);
 
+  // Unique feature states
+  const [churnRisks, setChurnRisks] = useState<ChurnRisk[]>([]);
+  const [isChurnLoading, setIsChurnLoading] = useState(false);
+  const [menuLifecycle, setMenuLifecycle] = useState<MenuLifecycleItem[]>([]);
+  const [isLifecycleLoading, setIsLifecycleLoading] = useState(false);
+  const [competitorBenchmark, setCompetitorBenchmark] = useState<CompetitorBenchmarkItem[]>([]);
+  const [isBenchmarkLoading, setIsBenchmarkLoading] = useState(false);
+
   useEffect(() => {
     const fetchInsights = async () => {
       try {
@@ -103,6 +116,54 @@ const OwnerDashboard = () => {
     
     fetchInsights();
   }, [selectedRestaurant]);
+
+  // Fetch churn risks whenever restaurant selection changes
+  useEffect(() => {
+    const fetchChurn = async () => {
+      try {
+        setIsChurnLoading(true);
+        const data = await getChurnRisks(selectedRestaurant?.name || undefined);
+        setChurnRisks(data);
+      } catch (error) {
+        console.error("Failed to fetch churn risks:", error);
+      } finally {
+        setIsChurnLoading(false);
+      }
+    };
+    fetchChurn();
+  }, [selectedRestaurant]);
+
+  // Fetch menu lifecycle whenever restaurant selection changes
+  useEffect(() => {
+    const fetchLifecycle = async () => {
+      try {
+        setIsLifecycleLoading(true);
+        const data = await getMenuLifecycle(selectedRestaurant?.name || undefined);
+        setMenuLifecycle(data);
+      } catch (error) {
+        console.error("Failed to fetch menu lifecycle:", error);
+      } finally {
+        setIsLifecycleLoading(false);
+      }
+    };
+    fetchLifecycle();
+  }, [selectedRestaurant]);
+
+  // Fetch competitor benchmark once (all restaurants)
+  useEffect(() => {
+    const fetchBenchmark = async () => {
+      try {
+        setIsBenchmarkLoading(true);
+        const data = await getCompetitorBenchmark();
+        setCompetitorBenchmark(data);
+      } catch (error) {
+        console.error("Failed to fetch benchmark:", error);
+      } finally {
+        setIsBenchmarkLoading(false);
+      }
+    };
+    fetchBenchmark();
+  }, []);
 
   const fetchData = async () => {
     try {
@@ -611,29 +672,7 @@ const OwnerDashboard = () => {
             </div>
           </div>
 
-          {/* Category Breakdown */}
-          <div className="glass-card rounded-xl p-6 animate-fade-in">
-            <h3 className="font-display text-lg font-semibold text-foreground mb-4">
-              {selectedRestaurant ? `${selectedRestaurant.name} - Category Breakdown` : "Category Breakdown"}
-            </h3>
-            {filteredCategoryBreakdown.length > 0 ? (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={filteredCategoryBreakdown} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(30, 15%, 88%)" />
-                  <XAxis type="number" stroke="hsl(30, 5%, 45%)" fontSize={12} />
-                  <YAxis dataKey="name" type="category" stroke="hsl(30, 5%, 45%)" fontSize={12} width={100} />
-                  <Tooltip contentStyle={{ borderRadius: "8px", fontFamily: "Inter" }} />
-                  <Legend />
-                  <Bar dataKey="positive" fill={COLORS.positive} radius={[0, 4, 4, 0]} name="Positive Reviews" />
-                  <Bar dataKey="negative" fill={COLORS.negative} radius={[0, 4, 4, 0]} name="Negative Reviews" />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-[280px] flex items-center justify-center text-muted-foreground">
-                No category data available
-              </div>
-            )}
-          </div>
+
 
           {/* Menu & Aspect Intelligence */}
           <div className="glass-card rounded-xl p-6 animate-fade-in space-y-6">
@@ -774,43 +813,53 @@ const OwnerDashboard = () => {
             )}
           </div>
 
-          {/* Suggestions Section */}
-          {suggestions.length > 0 && (
-            <div className="glass-card rounded-xl p-6 animate-fade-in">
-              <h3 className="font-display text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                <Lightbulb className="w-5 h-5 text-amber-500" />
-                Improvement Suggestions
+          {/* ── Predictive Churn Warning ───────────────────────────────── */}
+          <div className="glass-card rounded-xl p-4 sm:p-6 animate-fade-in">
+            <div className="mb-5">
+              <h3 className="font-display text-lg font-semibold text-foreground flex items-center gap-2">
+                <Users className="w-5 h-5 text-red-500" />
+                Predictive Churn Warning
               </h3>
-              <div className="space-y-4">
-                {suggestions.map((suggestion, index) => (
-                  <div 
-                    key={index} 
-                    className={`p-4 rounded-lg border ${
-                      suggestion.severity === 'high' 
-                        ? 'bg-red-50 border-red-200' 
-                        : suggestion.severity === 'medium'
-                        ? 'bg-orange-50 border-orange-200'
-                        : 'bg-yellow-50 border-yellow-200'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className={`w-2 h-2 mt-2 rounded-full ${
-                        suggestion.severity === 'high' 
-                          ? 'bg-red-500' 
-                          : suggestion.severity === 'medium'
-                          ? 'bg-orange-500'
-                          : 'bg-yellow-500'
-                      }`} />
-                      <div>
-                        <h4 className="font-medium text-foreground font-body">{suggestion.category}</h4>
-                        <p className="text-sm text-muted-foreground font-body mt-1">{suggestion.suggestion}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <p className="text-sm text-muted-foreground font-body mt-1">
+                Customers statistically likely to never return — ranked by a composite risk score combining last rating, sentiment, recency, and loyalty history
+              </p>
             </div>
-          )}
+            <ChurnWarningPanel data={churnRisks} isLoading={isChurnLoading} />
+          </div>
+
+          {/* ── Menu Item Lifecycle Tracker ───────────────────────────── */}
+          <div className="glass-card rounded-xl p-4 sm:p-6 animate-fade-in">
+            <div className="mb-5">
+              <h3 className="font-display text-lg font-semibold text-foreground flex items-center gap-2">
+                <BarChart2 className="w-5 h-5 text-blue-500" />
+                Menu Item Lifecycle Tracker
+              </h3>
+              <p className="text-sm text-muted-foreground font-body mt-1">
+                Week-over-week sentiment velocity per dish and aspect — not just where things stand, but which direction they&apos;re heading
+              </p>
+            </div>
+            <MenuLifecycleChart data={menuLifecycle} isLoading={isLifecycleLoading} />
+          </div>
+
+          {/* ── Competitor Benchmarking ───────────────────────────────── */}
+          <div className="glass-card rounded-xl p-4 sm:p-6 animate-fade-in">
+            <div className="mb-5">
+              <h3 className="font-display text-lg font-semibold text-foreground flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-amber-500" />
+                Competitor Benchmarking
+              </h3>
+              <p className="text-sm text-muted-foreground font-body mt-1">
+                Cross-restaurant radar comparison across 5 weighted dimensions — Food Quality, Service, Hygiene, Value, and Ambiance
+              </p>
+            </div>
+            <CompetitorBenchmark
+              data={competitorBenchmark}
+              selectedRestaurantName={selectedRestaurant?.name}
+              isLoading={isBenchmarkLoading}
+            />
+          </div>
+
+
 
           {/* Recent Reviews */}
           <div className="glass-card rounded-xl p-6 animate-fade-in">
