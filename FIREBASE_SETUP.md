@@ -1,92 +1,121 @@
-# Firebase Authentication Setup Guide
+# TastePulse Production Firebase Architecture & Setup Guide
 
-Follow these steps to complete the Firebase authentication setup:
+This guide details the production architecture, security model, Firestore indexes, and bootstrapping procedures for TastePulse.
 
-## Step 1: Create Firebase Project
+---
 
-1. Go to [Firebase Console](https://console.firebase.google.com)
-2. Click "Add project" and follow the prompts
-3. Name your project (e.g., "tastepulse")
+## 1. Security & Authorization Model
 
-## Step 2: Enable Authentication
+### A. Custom Claims (Zero Trust for Client State)
+- Roles (`customer`, `owner`, `admin`) are strictly stored as **Firebase Custom User Claims** on Firebase Auth tokens.
+- `localStorage` is **never** used or trusted for authorization.
+- Token claims are decoded and verified on the server side (`auth.verify_id_token(token, check_revoked=True)`).
+- **Fail-Closed Policy**: If Firebase Admin credentials are not configured, all authenticated backend endpoints fail closed with `503 Service Unavailable`.
 
-1. In Firebase Console, go to **Authentication** (left sidebar)
-2. Click **Get Started**
-3. Go to **Sign-in method** tab
-4. Enable **Email/Password**:
-   - Click on "Email/Password"
-   - Toggle "Enable" to ON
-   - Optionally enable "Email link (passwordless sign-in)"
-   - Click **Save**
+### B. Firestore Security Rules (`firestore.rules`)
+- **Direct Client Writes**: Review creation, updates, and deletes are protected at the database layer:
+  - `reviews/{reviewId}`:
+    - Author must match `request.auth.uid`.
+    - Document ID must be deterministic: `{restaurantId}_{authorUid}`.
+    - `allow update: if false;` enforces strict review immutability and makes duplicate review creation impossible.
+  - `restaurants/{restaurantId}`:
+    - Only users with `request.auth.token.role == 'owner'` can create restaurants.
+    - Only `resource.data.ownerUid == request.auth.uid` can modify or delete.
 
-## Step 3: Get Firebase Config
+---
 
-1. Go to **Project Settings** (gear icon next to Project Overview)
-2. Scroll down to **Your apps**
-3. Click the **Web** icon (`</>`)
-4. Register app (e.g., "tastepulse-web")
-5. Copy the `firebaseConfig` object
+## 2. Bootstrapping the Initial Owner Account
 
-## Step 4: Update Frontend Config
+To solve the initial deployment chicken-and-egg problem (where promoting a user requires an existing owner/admin), use the secure bootstrap CLI tool:
 
-Edit `src/lib/firebase.ts` and replace the placeholder values:
+```bash
+# 1. Set your secret in your environment (never commit this)
+export BOOTSTRAP_ADMIN_SECRET="your-secure-secret"
 
-```
-typescript
-export const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
-```
-
-## Step 5: Setup Backend (Optional - for production)
-
-1. In Firebase Console, go to **Project Settings** > **Service Accounts**
-2. Click **Generate New Private Key**
-3. Save the JSON file as `serviceAccountKey.json` in the `backend/` folder
-4. The backend will use this for token verification
-
-**Note**: The backend is configured to run in development mode (without Firebase verification) if the service account key is not found. This allows testing without full Firebase setup.
-
-## How It Works
-
-### User Roles
-- **Owner**: Can access Owner Dashboard, manage restaurants, view analytics
-- **Customer**: Can access Customer Dashboard, view restaurants, add reviews
-
-### Authentication Flow
-1. User signs up/login via Firebase Authentication
-2. Role is stored in localStorage (simplified approach)
-3. Frontend sends Firebase ID token with each API request
-4. Backend verifies token and checks role for protected endpoints
-
-### Protected Routes (Backend)
-- `POST /api/reviews` - Requires authentication
-- `POST /api/restaurants` - Requires owner role
-- `DELETE /api/restaurants/<id>` - Requires owner role
-- `PUT /api/restaurants/<id>` - Requires owner role
-- `GET /api/analytics` - Requires owner role
-- `GET /api/sentiment-trend` - Requires owner role
-- `GET /api/category-breakdown` - Requires owner role
-
-## Running the Application
-
-### Frontend
-```
-bash
-npm run dev
-```
-
-### Backend
-```
-bash
+# 2. Run the bootstrap script
 cd backend
-pip install -r requirements.txt
-python server.py
+python bootstrap_admin.py --email admin@tastepulse.com --role owner --secret your-secure-secret
 ```
 
-The app will be available at `http://localhost:5173` and the API at `http://localhost:5000`.
+This will:
+1. Find or create the user in Firebase Auth.
+2. Mint the `role: 'owner'` and `admin: true` custom claims via Firebase Admin SDK.
+3. Call `auth.revoke_refresh_tokens(uid)` to immediately invalidate old sessions and force instant token refresh.
+4. Sync the Firestore `users/{uid}` profile document.
+
+---
+
+## 3. Firestore Composite Indexes
+
+For paginated queries that combine equality filters with timestamp ordering (`where('restaurantId', '==', id).orderBy('createdAt', 'desc')`), Firestore requires composite indexes defined in `firestore.indexes.json`:
+
+```json
+{
+  "indexes": [
+    {
+      "collectionGroup": "reviews",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "restaurantId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "reviews",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "restaurantName", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "reviews",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "authorUid", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "restaurants",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ownerUid", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    }
+  ]
+}
+```
+
+Deploy indexes to Firebase:
+```bash
+firebase deploy --only firestore:indexes
+```
+
+---
+
+## 4. Running Local Firebase Emulators
+
+To run and test the complete system locally against real Firebase Firestore and Auth emulators without affecting production data:
+
+```bash
+# Start Auth and Firestore emulators
+firebase emulators:start
+
+# In your .env or backend environment:
+export FIRESTORE_EMULATOR_HOST="127.0.0.1:8080"
+export FIREBASE_AUTH_EMULATOR_HOST="127.0.0.1:9099"
+```
+
+---
+
+## 5. Architectural Division of Responsibilities
+
+| Responsibility | Authoritative Layer | Mechanism |
+| :--- | :--- | :--- |
+| **Review Creation & Storage** | Firestore Client SDK | Direct write with atomic `runTransaction` + `firestore.rules` |
+| **Duplicate Prevention** | Firestore Security Rules | Deterministic Doc ID `{restaurantId}_{authorUid}` + `allow update: if false` |
+| **AI Sentiment Inference** | Flask Backend Microservice | `POST /api/predict` (Flask-Limiter rate-limited + App Check) |
+| **Role Management** | Firebase Admin SDK | `POST /api/auth/set-role` + `bootstrap_admin.py` |
+| **Aggregates Maintenance** | Firestore Transactions | Atomic increment/decrement of `totalReviews` & `ratingSum` |

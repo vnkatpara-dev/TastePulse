@@ -3,24 +3,19 @@ import json
 from functools import wraps
 from flask import request, jsonify
 import firebase_admin
-from firebase_admin import credentials, auth
+from firebase_admin import credentials, auth, firestore
 
-# Firebase configuration - replace with your actual Firebase service account key path
-# You need to download serviceAccountKey.json from Firebase Console:
-# Project Settings > Service Accounts > Generate New Private Key
 FIREBASE_SERVICE_ACCOUNT_KEY = os.path.join(os.path.dirname(__file__), 'serviceAccountKey.json')
-
-# Initialize Firebase Admin SDK
 firebase_initialized = False
 
 def initialize_firebase():
-    """Initialize Firebase Admin SDK"""
+    """Initialize Firebase Admin SDK. Returns True if initialized, False otherwise."""
     global firebase_initialized
     
     if firebase_initialized:
         return True
     
-    # Try to load service account key from environment variable (useful for cloud hosting)
+    # Try to load service account key from environment variable
     firebase_key_json = os.environ.get('FIREBASE_SERVICE_ACCOUNT_KEY_JSON')
     if firebase_key_json:
         try:
@@ -28,124 +23,160 @@ def initialize_firebase():
             cred = credentials.Certificate(service_account_info)
             firebase_admin.initialize_app(cred)
             firebase_initialized = True
-            print("Firebase Admin SDK initialized successfully from environment variable")
+            print("Firebase Admin SDK initialized successfully from environment variable.")
             return True
         except Exception as e:
             print(f"Failed to initialize Firebase from environment variable: {e}")
+            firebase_initialized = False
+            return False
 
-    # Try to load service account key if it exists
+    # Try to load service account key from file
     if os.path.exists(FIREBASE_SERVICE_ACCOUNT_KEY):
         try:
             cred = credentials.Certificate(FIREBASE_SERVICE_ACCOUNT_KEY)
             firebase_admin.initialize_app(cred)
             firebase_initialized = True
-            print("Firebase Admin SDK initialized successfully")
+            print("Firebase Admin SDK initialized successfully from serviceAccountKey.json.")
             return True
         except Exception as e:
-            print(f"Failed to initialize Firebase: {e}")
+            print(f"Failed to initialize Firebase from file: {e}")
+            firebase_initialized = False
             return False
     else:
-        print(f"Firebase service account key not found at {FIREBASE_SERVICE_ACCOUNT_KEY} and env var FIREBASE_SERVICE_ACCOUNT_KEY_JSON is empty.")
-        print("Auth will be in bypass mode for development")
+        # FAIL CLOSED: Do not enable bypass or mock mode
+        print(f"[SECURITY] Firebase service account key not found at {FIREBASE_SERVICE_ACCOUNT_KEY} and env var FIREBASE_SERVICE_ACCOUNT_KEY_JSON is empty.")
+        print("[SECURITY] Fail-closed policy active: all authenticated backend requests will be rejected with 503 until credentials are provided.")
+        firebase_initialized = False
         return False
 
 # Initialize on module load
 initialize_firebase()
 
-def verify_firebase_token(token):
-    """Verify Firebase ID token and return decoded claims"""
-    if not firebase_initialized:
-        # Development mode - return mock owner user to allow all features
-        return {
-            'uid': 'dev_user',
-            'email': 'dev@example.com',
-            'role': 'owner'
-        }
-    
-    try:
-        # Verify the token
-        decoded_token = auth.verify_id_token(token)
-        return decoded_token
-    except Exception as e:
-        print(f"Token verification failed: {e}")
-        return None
-
 def get_token_from_header():
-    """Extract token from Authorization header"""
+    """Extract Bearer token from Authorization header"""
     auth_header = request.headers.get('Authorization')
-    
     if not auth_header:
         return None
     
-    # Expect format: "Bearer <token>"
     parts = auth_header.split()
-    
     if len(parts) != 2 or parts[0].lower() != 'bearer':
         return None
     
     return parts[1]
 
+def verify_firebase_token(token, check_revoked=False):
+    """
+    Verify Firebase ID token and return decoded claims.
+    FAIL CLOSED: If Firebase Admin is not initialized or verification fails, returns None.
+    If check_revoked=True, immediately rejects tokens whose user sessions were revoked.
+    """
+    if not firebase_initialized:
+        return None
+    
+    try:
+        decoded_token = auth.verify_id_token(token, check_revoked=check_revoked)
+        return decoded_token
+    except Exception as e:
+        print(f"Token verification failed: {e}")
+        return None
+
 def require_auth(f):
-    """Decorator to require authentication for a route"""
+    """
+    Decorator to require authentication for a route.
+    FAILS CLOSED (503) if Firebase Admin credentials are not configured.
+    """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        token = get_token_from_header()
+        if not firebase_initialized:
+            return jsonify({
+                'error': 'Firebase Admin credentials not configured. Backend fails closed for security.',
+                'code': 'AUTH_SERVICE_UNAVAILABLE'
+            }), 503
         
+        token = get_token_from_header()
         if not token:
             return jsonify({'error': 'No authorization token provided'}), 401
         
         user = verify_firebase_token(token)
-        
         if not user:
             return jsonify({'error': 'Invalid or expired token'}), 401
         
-        # Add user info to request context
+        # Read verified custom claims only
         request.user = user
         request.uid = user.get('uid')
-        request.email = user.get('email')
+        request.email = user.get('email', '')
+        request.role = user.get('role', 'customer')
         
         return f(*args, **kwargs)
     
     return decorated_function
 
 def require_role(role):
-    """Decorator to require specific role"""
+    """
+    Decorator to require a specific role (e.g. 'owner').
+    Role MUST come from verified custom claims in decoded Firebase token, NEVER from client body/headers.
+    FAILS CLOSED (503) if Firebase Admin credentials are not configured.
+    """
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            token = get_token_from_header()
+            if not firebase_initialized:
+                return jsonify({
+                    'error': 'Firebase Admin credentials not configured. Backend fails closed for security.',
+                    'code': 'AUTH_SERVICE_UNAVAILABLE'
+                }), 503
             
+            token = get_token_from_header()
             if not token:
                 return jsonify({'error': 'No authorization token provided'}), 401
             
-            user = verify_firebase_token(token)
-            
+            user = verify_firebase_token(token, check_revoked=True)
             if not user:
-                return jsonify({'error': 'Invalid or expired token'}), 401
+                return jsonify({'error': 'Invalid, expired, or revoked token'}), 401
             
-            # Check role - support both custom claims and local role mapping
-            user_role = user.get('role', '')
-            user_email = user.get('email', '')
-            
-            # For development mode (when firebase is initialized but no custom claims)
-            # Allow access if user has a valid Firebase email
-            if not user_role and firebase_initialized:
-                # Development mode: check if user has a valid email
-                # In production, you would set custom claims in Firebase
-                if user_email and user_email != 'dev@example.com':
-                    # User is logged in but no role claim - assume owner for now
-                    user_role = 'owner'
-            
+            user_role = user.get('role', 'customer')
             if user_role != role:
-                return jsonify({'error': 'Insufficient permissions'}), 403
+                return jsonify({
+                    'error': f'Forbidden: Insufficient permissions. Required role: {role}',
+                    'code': 'FORBIDDEN'
+                }), 403
             
-            # Add user info to request context
             request.user = user
             request.uid = user.get('uid')
-            request.email = user.get('email')
+            request.email = user.get('email', '')
             request.role = user_role
             
             return f(*args, **kwargs)
-        
         return decorated_function
     return decorator
+
+def set_user_role_claim(uid, role):
+    """
+    Trusted server-side function to set custom claims on a user and sync Firestore users/{uid}.
+    Revokes refresh tokens immediately to prevent the 1-hour revocation lag.
+    """
+    if not firebase_initialized:
+        raise RuntimeError("Firebase Admin SDK is not initialized.")
+    
+    if role not in ['customer', 'owner', 'admin']:
+        raise ValueError(f"Invalid role: {role}")
+    
+    auth.set_custom_user_claims(uid, {'role': role})
+    
+    # Invalidate existing refresh tokens so changes propagate immediately
+    try:
+        auth.revoke_refresh_tokens(uid)
+    except Exception as e:
+        print(f"Note: revoke_refresh_tokens: {e}")
+    
+    # Sync Firestore users/{uid} document if Firestore is active
+    try:
+        db = firestore.client()
+        user_ref = db.collection('users').document(uid)
+        user_ref.set({
+            'role': role,
+            'updatedAt': firestore.SERVER_TIMESTAMP
+        }, merge=True)
+    except Exception as e:
+        print(f"Note: Could not sync user doc in Firestore: {e}")
+

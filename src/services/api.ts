@@ -2,22 +2,25 @@ import { auth } from "../lib/firebase";
 import { getIdToken } from "firebase/auth";
 
 // Use relative URL - Vite proxy will forward to backend
-// In production, set VITE_API_URL to your backend URL
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 export interface Review {
   id: string;
-  customerName: string;
+  restaurantId?: string;
   restaurantName: string;
+  authorUid?: string;
+  customerName: string;
   rating: number;
   text: string;
   sentiment: 'positive' | 'negative' | 'neutral';
   sentimentScore: number;
+  confidence?: number;
   date: string;
   category: string;
   ownerReply?: string;
   ownerReplyDate?: string;
-  ownerEmail?: string;
+  ownerUid?: string;
+  createdAt?: string;
 }
 
 export interface Restaurant {
@@ -26,6 +29,9 @@ export interface Restaurant {
   cuisine: string;
   averageRating: number;
   totalReviews: number;
+  ownerUid?: string;
+  ownerEmail?: string;
+  createdAt?: string;
   sentimentSummary: {
     positive: number;
     negative: number;
@@ -66,11 +72,10 @@ export interface SentimentPrediction {
 
 // Helper function to get auth headers
 const getAuthHeaders = async (): Promise<HeadersInit> => {
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
   
-  // If user is authenticated, add the Firebase token
   if (auth.currentUser) {
     try {
       const token = await getIdToken(auth.currentUser);
@@ -94,13 +99,14 @@ export const predictSentiment = async (text: string): Promise<SentimentPredictio
   });
 
   if (!response.ok) {
-    throw new Error('Failed to predict sentiment');
+    const err = await response.json().catch(() => ({ error: 'Failed to predict sentiment' }));
+    throw new Error(err.error || 'Failed to predict sentiment');
   }
 
   return response.json();
 };
 
-// Delete a review (no auth required - for both customers and owners)
+// Delete a review (requires authentication; IDOR protected)
 export const deleteReview = async (reviewId: string): Promise<void> => {
   const headers = await getAuthHeaders();
   
@@ -110,20 +116,31 @@ export const deleteReview = async (reviewId: string): Promise<void> => {
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await response.json().catch(() => ({ error: 'Failed to delete review' }));
     throw new Error(error.error || 'Failed to delete review');
   }
 };
 
-// Get all reviews with optional date filtering
-export const getReviews = async (startDate?: string, endDate?: string): Promise<Review[]> => {
+// Get reviews with optional pagination and filters (Phase 4)
+export const getReviews = async (params?: {
+  startDate?: string;
+  endDate?: string;
+  limit?: number;
+  startAfter?: string;
+  restaurantId?: string;
+  restaurantName?: string;
+}): Promise<Review[]> => {
   const headers = await getAuthHeaders();
   
-  const params = new URLSearchParams();
-  if (startDate) params.append('startDate', startDate);
-  if (endDate) params.append('endDate', endDate);
+  const queryParams = new URLSearchParams();
+  if (params?.startDate) queryParams.append('startDate', params.startDate);
+  if (params?.endDate) queryParams.append('endDate', params.endDate);
+  if (params?.limit) queryParams.append('limit', params.limit.toString());
+  if (params?.startAfter) queryParams.append('startAfter', params.startAfter);
+  if (params?.restaurantId) queryParams.append('restaurantId', params.restaurantId);
+  if (params?.restaurantName) queryParams.append('restaurantName', params.restaurantName);
   
-  const queryString = params.toString();
+  const queryString = queryParams.toString();
   const url = `${API_BASE_URL}/reviews${queryString ? '?' + queryString : ''}`;
   
   const response = await fetch(url, { headers });
@@ -137,26 +154,18 @@ export const getReviews = async (startDate?: string, endDate?: string): Promise<
 
 // Get reviews by restaurant
 export const getReviewsByRestaurant = async (restaurantName: string, startDate?: string, endDate?: string): Promise<Review[]> => {
-  const headers = await getAuthHeaders();
-  
-  const params = new URLSearchParams();
-  if (startDate) params.append('startDate', startDate);
-  if (endDate) params.append('endDate', endDate);
-  
-  const queryString = params.toString();
-  const url = `${API_BASE_URL}/reviews/${encodeURIComponent(restaurantName)}${queryString ? '?' + queryString : ''}`;
-  
-  const response = await fetch(url, { headers });
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch reviews');
-  }
-
-  return response.json();
+  return getReviews({ restaurantName, startDate, endDate });
 };
 
 // Add a new review (requires authentication)
-export const addReview = async (review: Omit<Review, 'id' | 'sentiment' | 'sentimentScore' | 'date'>): Promise<Review> => {
+export const addReview = async (review: {
+  restaurantId?: string;
+  restaurantName: string;
+  rating: number;
+  text: string;
+  category: string;
+  customerName?: string;
+}): Promise<Review> => {
   const headers = await getAuthHeaders();
   
   const response = await fetch(`${API_BASE_URL}/reviews`, {
@@ -166,17 +175,19 @@ export const addReview = async (review: Omit<Review, 'id' | 'sentiment' | 'senti
   });
 
   if (!response.ok) {
-    throw new Error('Failed to add review');
+    const err = await response.json().catch(() => ({ error: 'Failed to add review' }));
+    throw new Error(err.error || 'Failed to add review');
   }
 
   return response.json();
 };
 
 // Get all restaurants
-export const getRestaurants = async (): Promise<Restaurant[]> => {
+export const getRestaurants = async (myRestaurants = false): Promise<Restaurant[]> => {
   const headers = await getAuthHeaders();
+  const url = `${API_BASE_URL}/restaurants${myRestaurants ? '?myRestaurants=true' : ''}`;
   
-  const response = await fetch(`${API_BASE_URL}/restaurants`, {
+  const response = await fetch(url, {
     headers,
   });
 
@@ -187,7 +198,7 @@ export const getRestaurants = async (): Promise<Restaurant[]> => {
   return response.json();
 };
 
-// Get analytics (requires authentication for detailed data)
+// Get analytics
 export const getAnalytics = async (): Promise<Analytics> => {
   const headers = await getAuthHeaders();
   
@@ -243,7 +254,8 @@ export const addRestaurant = async (restaurant: { name: string; cuisine: string 
   });
 
   if (!response.ok) {
-    throw new Error('Failed to add restaurant');
+    const err = await response.json().catch(() => ({ error: 'Failed to add restaurant' }));
+    throw new Error(err.error || 'Failed to add restaurant');
   }
 
   return response.json();
@@ -259,7 +271,8 @@ export const deleteRestaurant = async (restaurantId: string): Promise<void> => {
   });
 
   if (!response.ok) {
-    throw new Error('Failed to delete restaurant');
+    const err = await response.json().catch(() => ({ error: 'Failed to delete restaurant' }));
+    throw new Error(err.error || 'Failed to delete restaurant');
   }
 };
 
@@ -274,11 +287,12 @@ export const updateRestaurant = async (restaurantId: string, restaurant: { name?
   });
 
   if (!response.ok) {
-    throw new Error('Failed to update restaurant');
+    const err = await response.json().catch(() => ({ error: 'Failed to update restaurant' }));
+    throw new Error(err.error || 'Failed to update restaurant');
   }
 };
 
-// Add reply to a review (requires authentication)
+// Add reply to a review (requires owner authentication)
 export const addReplyToReview = async (reviewId: string, reply: string): Promise<void> => {
   const headers = await getAuthHeaders();
   
@@ -289,7 +303,8 @@ export const addReplyToReview = async (reviewId: string, reply: string): Promise
   });
 
   if (!response.ok) {
-    throw new Error('Failed to add reply to review');
+    const err = await response.json().catch(() => ({ error: 'Failed to add reply' }));
+    throw new Error(err.error || 'Failed to add reply');
   }
 };
 
@@ -304,7 +319,7 @@ export interface DishInsight {
   };
 }
 
-// Get dish insights (requires owner authentication)
+// Get dish insights
 export const getDishInsights = async (restaurant?: string, startDate?: string, endDate?: string): Promise<DishInsight[]> => {
   const headers = await getAuthHeaders();
   

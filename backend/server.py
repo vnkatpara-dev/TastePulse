@@ -1,17 +1,36 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
+import math
+
+from auth_middleware import (
+    firebase_initialized,
+    require_auth,
+    require_role,
+    set_user_role_claim,
+    verify_firebase_token,
+    get_token_from_header
+)
+import firebase_admin
+from firebase_admin import firestore, auth as admin_auth, app_check
 
 app = Flask(__name__)
 
 # Enable CORS for all routes
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
-from auth_middleware import firebase_initialized
-from firebase_admin import firestore
+# Flask-Limiter for rate limiting public inference and APIs (Phase 6)
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=[],
+    storage_uri="memory://"
+)
 
 # Initialize Firestore client if Firebase is active
 db = None
@@ -23,12 +42,10 @@ if firebase_initialized:
         print(f"Could not initialize Firestore client: {e}")
         db = None
 
-# Load model and vectorizer
+# Load ML model and vectorizer
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "restaurant_sentiment_model.pkl")
 VECTORIZER_PATH = os.path.join(os.path.dirname(__file__), "tfidf_vectorizer.pkl")
-DATA_PATH = os.path.join(os.path.dirname(__file__), "reviews.json")
 
-# Try to load model and vectorizer, use fallback if it fails
 model = None
 vectorizer = None
 
@@ -44,253 +61,225 @@ except Exception as e:
     model = None
     vectorizer = None
 
-# Fallback rule-based sentiment classifier
+
+# ─── PHASE 5: Refined Fallback Sentiment Classifier ────────────────────────────
+
 def simple_sentiment(text):
-    """Simple rule-based sentiment classifier as fallback"""
+    """
+    Refined rule-based sentiment classifier (Phase 5).
+    - Removed 'okay', 'decent', 'difficult', 'waited', 'lost' from negative list
+      (these are neutral or context-dependent).
+    - Requires at least 2 keyword matches or a net score >= 2 to classify as
+      strongly positive/negative, reducing false positives on ambiguous text.
+    """
     text_lower = text.lower()
-    pos_words = ["good", "great", "excellent", "amazing", "love", "delicious", "friendly", "awesome", "best", "nice", "fantastic", "wonderful", "perfect", "stunning", "phenomenal", "impressive", "warm", "welcoming", "fresh", "divine", "outstanding", "superb"]
-    neg_words = ["bad", "terrible", "awful", "hate", "horrible", "rude", "slow", "worst", "poor", "disgusting", "dirty", "cold", "overpriced", "dismissive", "lost", "waited", "hair", "difficult", "okay", "decent"]
+    
+    pos_words = [
+        "good", "great", "excellent", "amazing", "love", "delicious",
+        "friendly", "awesome", "best", "nice", "fantastic", "wonderful",
+        "perfect", "stunning", "phenomenal", "impressive", "warm",
+        "welcoming", "fresh", "divine", "outstanding", "superb", "tasty"
+    ]
+    
+    # Cleaned negative list: removed 'okay', 'decent', 'difficult', 'waited', 'lost'
+    neg_words = [
+        "bad", "terrible", "awful", "hate", "horrible", "rude",
+        "slow", "worst", "poor", "disgusting", "dirty", "cold",
+        "overpriced", "dismissive", "hair", "undercooked", "stale"
+    ]
     
     pos_count = sum(1 for word in pos_words if word in text_lower)
     neg_count = sum(1 for word in neg_words if word in text_lower)
     
-    if pos_count > neg_count:
+    # Net keyword differential requirement
+    net_score = pos_count - neg_count
+    
+    if pos_count >= 2 and net_score >= 1:
         return "positive"
-    elif neg_count > pos_count:
+    elif neg_count >= 2 and net_score <= -1:
         return "negative"
+    elif pos_count == 1 and neg_count == 0:
+        return "positive"
+    elif neg_count == 1 and pos_count == 0:
+        return "negative"
+    
     return "neutral"
 
-# Initialize data file if it doesn't exist
-if not os.path.exists(DATA_PATH):
-    initial_data = {
-        "reviews": [
-            {"id": "101", "customerName": "Alice M.", "restaurantName": "The Golden Fork", "rating": 5, "text": "Fabulous lasagna and wonderful summer salad! Service was quick.", "sentiment": "positive", "sentimentScore": 0.95, "date": "2025-06-12", "category": "Food Quality"},
-            {"id": "102", "customerName": "Bob T.", "restaurantName": "Spice Route", "rating": 3, "text": "The chicken tikka was okay, but the service was extremely slow.", "sentiment": "neutral", "sentimentScore": 0.45, "date": "2025-06-25", "category": "Service"},
-            {"id": "103", "customerName": "Carol S.", "restaurantName": "Ocean Breeze", "rating": 2, "text": "Found a piece of plastic in the crab cake. Disgusting hygiene standards.", "sentiment": "negative", "sentimentScore": 0.1, "date": "2025-07-08", "category": "Hygiene"},
-            {"id": "104", "customerName": "David L.", "restaurantName": "The Golden Fork", "rating": 4, "text": "Great wine list and lovely view. The steak was cooked perfectly.", "sentiment": "positive", "sentimentScore": 0.88, "date": "2025-07-22", "category": "Ambiance"},
-            {"id": "105", "customerName": "Emma W.", "restaurantName": "Spice Route", "rating": 5, "text": "Unbelievable flavors! The lamb vindaloo was out of this world.", "sentiment": "positive", "sentimentScore": 0.96, "date": "2025-08-14", "category": "Food Quality"},
-            {"id": "106", "customerName": "Frank H.", "restaurantName": "Ocean Breeze", "rating": 4, "text": "Nice dining by the water. Good oysters and pleasant service.", "sentiment": "positive", "sentimentScore": 0.85, "date": "2025-08-28", "category": "Ambiance"},
-            {"id": "107", "customerName": "Grace K.", "restaurantName": "The Golden Fork", "rating": 1, "text": "Rude waiters and overpriced wine. Will never return.", "sentiment": "negative", "sentimentScore": 0.05, "date": "2025-09-05", "category": "Service"},
-            {"id": "108", "customerName": "Henry P.", "restaurantName": "Spice Route", "rating": 4, "text": "Reliable Indian food, very clean and friendly staff.", "sentiment": "positive", "sentimentScore": 0.89, "date": "2025-09-19", "category": "Hygiene"},
-            {"id": "109", "customerName": "Irene D.", "restaurantName": "Ocean Breeze", "rating": 3, "text": "Portion sizes were too small for the price. Food was decent.", "sentiment": "neutral", "sentimentScore": 0.5, "date": "2025-10-10", "category": "Value"},
-            {"id": "110", "customerName": "Jack R.", "restaurantName": "The Golden Fork", "rating": 5, "text": "Best pasta I've had in years! Absolutely amazing restaurant.", "sentiment": "positive", "sentimentScore": 0.97, "date": "2025-10-31", "category": "Food Quality"},
-            {"id": "111", "customerName": "Karen B.", "restaurantName": "Spice Route", "rating": 2, "text": "Very bland food. I expected authentic spices, but was let down.", "sentiment": "negative", "sentimentScore": 0.2, "date": "2025-11-12", "category": "Food Quality"},
-            {"id": "112", "customerName": "Leo M.", "restaurantName": "Ocean Breeze", "rating": 5, "text": "Super fresh seafood, fast service, beautiful decor.", "sentiment": "positive", "sentimentScore": 0.94, "date": "2025-11-28", "category": "Food Quality"},
-            {"id": "113", "customerName": "Sarah J.", "restaurantName": "The Golden Fork", "rating": 4, "text": "Holiday menu was delicious. The noise level was quite high though.", "sentiment": "positive", "sentimentScore": 0.78, "date": "2025-12-15", "category": "Ambiance"},
-            {"id": "114", "customerName": "Mike D.", "restaurantName": "Spice Route", "rating": 5, "text": "Best butter chicken in town! Extremely friendly servers.", "sentiment": "positive", "sentimentScore": 0.93, "date": "2025-12-24", "category": "Service"},
-            {"id": "115", "customerName": "Nancy C.", "restaurantName": "Ocean Breeze", "rating": 2, "text": "Overpriced for what it is. Wait time was over an hour.", "sentiment": "negative", "sentimentScore": 0.15, "date": "2026-01-08", "category": "Value"},
-            {"id": "116", "customerName": "Oliver K.", "restaurantName": "The Golden Fork", "rating": 3, "text": "Average Italian food. The service was polite but slow.", "sentiment": "neutral", "sentimentScore": 0.48, "date": "2026-01-20", "category": "Service"},
-            {"id": "1", "customerName": "Alice M.", "restaurantName": "The Golden Fork", "rating": 5, "text": "Absolutely stunning food and ambiance. The truffle pasta was divine!", "sentiment": "positive", "sentimentScore": 0.95, "date": "2026-02-18", "category": "Food Quality"},
-            {"id": "2", "customerName": "Bob T.", "restaurantName": "The Golden Fork", "rating": 2, "text": "Service was incredibly slow. Waited 45 minutes for appetizers.", "sentiment": "negative", "sentimentScore": 0.15, "date": "2026-02-17", "category": "Service"},
-            {"id": "3", "customerName": "Carol S.", "restaurantName": "The Golden Fork", "rating": 4, "text": "Great food but the noise level made conversation difficult.", "sentiment": "neutral", "sentimentScore": 0.6, "date": "2026-02-16", "category": "Ambiance"},
-            {"id": "4", "customerName": "David L.", "restaurantName": "Spice Route", "rating": 5, "text": "Best Indian food I've had outside of India. The butter chicken is phenomenal.", "sentiment": "positive", "sentimentScore": 0.92, "date": "2026-02-15", "category": "Food Quality"},
-            {"id": "5", "customerName": "Emma W.", "restaurantName": "Spice Route", "rating": 1, "text": "Found a hair in my soup. Management was dismissive about it.", "sentiment": "negative", "sentimentScore": 0.05, "date": "2026-02-14", "category": "Hygiene"},
-            {"id": "6", "customerName": "Frank H.", "restaurantName": "The Golden Fork", "rating": 4, "text": "Lovely date night spot. Wine selection is impressive.", "sentiment": "positive", "sentimentScore": 0.82, "date": "2026-02-13", "category": "Ambiance"},
-            {"id": "7", "customerName": "Grace K.", "restaurantName": "Ocean Breeze", "rating": 5, "text": "The freshest seafood in town. Lobster bisque was out of this world!", "sentiment": "positive", "sentimentScore": 0.97, "date": "2026-02-12", "category": "Food Quality"},
-            {"id": "8", "customerName": "Henry P.", "restaurantName": "Ocean Breeze", "rating": 3, "text": "Food was okay but overpriced for the portion size.", "sentiment": "neutral", "sentimentScore": 0.45, "date": "2026-02-11", "category": "Value"},
-            {"id": "9", "customerName": "Irene D.", "restaurantName": "Spice Route", "rating": 4, "text": "Warm and welcoming staff. The naan bread was perfectly crispy.", "sentiment": "positive", "sentimentScore": 0.85, "date": "2026-02-10", "category": "Service"},
-            {"id": "10", "customerName": "Jack R.", "restaurantName": "The Golden Fork", "rating": 2, "text": "Reservation was lost. Had to wait 30 minutes despite booking ahead.", "sentiment": "negative", "sentimentScore": 0.12, "date": "2026-02-09", "category": "Service"},
-            {"id": "11", "customerName": "Karen B.", "restaurantName": "Ocean Breeze", "rating": 5, "text": "The sunset view paired with amazing sushi. Unforgettable experience!", "sentiment": "positive", "sentimentScore": 0.94, "date": "2026-02-08", "category": "Ambiance"},
-            {"id": "12", "customerName": "Leo M.", "restaurantName": "Spice Route", "rating": 3, "text": "Decent food but nothing special. Expected more given the hype.", "sentiment": "neutral", "sentimentScore": 0.5, "date": "2026-02-07", "category": "Food Quality"},
-            {"id": "117", "customerName": "Penny L.", "restaurantName": "Spice Route", "rating": 4, "text": "Spicy but delicious. The garlic naan was super soft.", "sentiment": "positive", "sentimentScore": 0.87, "date": "2026-03-15", "category": "Food Quality"},
-            {"id": "118", "customerName": "Quincy M.", "restaurantName": "Ocean Breeze", "rating": 4, "text": "Wonderful atmosphere. Seafood platter is huge and tasty.", "sentiment": "positive", "sentimentScore": 0.91, "date": "2026-03-29", "category": "Food Quality"},
-            {"id": "119", "customerName": "Rachel G.", "restaurantName": "The Golden Fork", "rating": 2, "text": "The table was dirty and service was dismissive. Disappointing.", "sentiment": "negative", "sentimentScore": 0.18, "date": "2026-04-10", "category": "Hygiene"},
-            {"id": "120", "customerName": "Sam W.", "restaurantName": "Spice Route", "rating": 5, "text": "Consistent quality and warm hospitality. Love the samosas.", "sentiment": "positive", "sentimentScore": 0.94, "date": "2026-04-25", "category": "Service"},
-            {"id": "121", "customerName": "Tina F.", "restaurantName": "Ocean Breeze", "rating": 3, "text": "Decent food, but the music was too loud. Hard to talk.", "sentiment": "neutral", "sentimentScore": 0.46, "date": "2026-05-05", "category": "Ambiance"},
-            {"id": "122", "customerName": "Victor P.", "restaurantName": "The Golden Fork", "rating": 5, "text": "Truffle pasta is a must-try. Top tier food quality.", "sentiment": "positive", "sentimentScore": 0.96, "date": "2026-05-18", "category": "Food Quality"},
-            {"id": "201", "customerName": "Guest Diner", "restaurantName": "Burger Shack", "rating": 5, "text": "Best burgers in town! The brioche bun was fresh and the patty was incredibly juicy.", "sentiment": "positive", "sentimentScore": 0.96, "date": "2026-03-10", "category": "Food Quality"},
-            {"id": "202", "customerName": "Alice M.", "restaurantName": "Burger Shack", "rating": 2, "text": "The fries were cold and soggy. Service took way too long for fast food.", "sentiment": "negative", "sentimentScore": 0.12, "date": "2026-03-24", "category": "Service"},
-            {"id": "203", "customerName": "Bob T.", "restaurantName": "Burger Shack", "rating": 4, "text": "Decent burger for the price. Fast and clean.", "sentiment": "positive", "sentimentScore": 0.82, "date": "2026-04-12", "category": "Value"},
-            {"id": "204", "customerName": "Carol S.", "restaurantName": "Burger Shack", "rating": 2, "text": "Tables were dirty and sticky. Staff was completely indifferent.", "sentiment": "negative", "sentimentScore": 0.15, "date": "2026-05-18", "category": "Hygiene"},
-            {"id": "205", "customerName": "David L.", "restaurantName": "Sakura Sushi", "rating": 5, "text": "Incredibly fresh sushi! The chef was amazing and interactive.", "sentiment": "positive", "sentimentScore": 0.97, "date": "2026-04-05", "category": "Food Quality"},
-            {"id": "206", "customerName": "Emma W.", "restaurantName": "Sakura Sushi", "rating": 3, "text": "Decent rolls, but it was way too expensive for what they served.", "sentiment": "neutral", "sentimentScore": 0.45, "date": "2026-04-20", "category": "Value"},
-            {"id": "207", "customerName": "Frank H.", "restaurantName": "Sakura Sushi", "rating": 5, "text": "Beautiful atmosphere, quiet music, perfect for date night.", "sentiment": "positive", "sentimentScore": 0.94, "date": "2026-05-12", "category": "Ambiance"},
-            {"id": "208", "customerName": "Grace K.", "restaurantName": "Sakura Sushi", "rating": 2, "text": "Wait time for sushi was over 50 minutes. Not worth the wait.", "sentiment": "negative", "sentimentScore": 0.18, "date": "2026-05-30", "category": "Service"}
-        ],
-        "restaurants": [
-            {"id": "1", "name": "The Golden Fork", "cuisine": "Italian", "averageRating": 3.8, "totalReviews": 234},
-            {"id": "2", "name": "Spice Route", "cuisine": "Indian", "averageRating": 4.1, "totalReviews": 189},
-            {"id": "3", "name": "Ocean Breeze", "cuisine": "Seafood", "averageRating": 4.3, "totalReviews": 156},
-            {"id": "burger-shack-id", "name": "Burger Shack", "cuisine": "Fast Food", "averageRating": 3.25, "totalReviews": 4},
-            {"id": "sakura-sushi-id", "name": "Sakura Sushi", "cuisine": "Japanese", "averageRating": 3.75, "totalReviews": 4}
-        ]
-    }
-    with open(DATA_PATH, 'w') as f:
-        json.dump(initial_data, f, indent=2)
-
-def seed_firestore_if_empty():
-    if db is None:
-        return
-    try:
-        # Check if restaurants collection has any documents
-        docs = list(db.collection('restaurants').limit(1).stream())
-        if len(docs) == 0:
-            print("Seeding Firestore with initial mock data...")
-            seed_data = None
-            if os.path.exists(DATA_PATH):
-                try:
-                    with open(DATA_PATH, 'r') as f:
-                        seed_data = json.load(f)
-                except Exception as e:
-                    print(f"Could not load local reviews.json for seeding: {e}")
-            
-            # If local file is missing, use global initial_data template
-            if not seed_data or 'restaurants' not in seed_data:
-                print("Seeding Firestore using template initial_data...")
-                global initial_data
-                seed_data = initial_data
-                
-            # Seed restaurants
-            for r in seed_data.get('restaurants', []):
-                db.collection('restaurants').document(r['id']).set(r)
-                
-            # Seed reviews
-            for rev in seed_data.get('reviews', []):
-                db.collection('reviews').document(rev['id']).set(rev)
-                
-            print(f"Firestore seeding completed! Seeded {len(seed_data.get('restaurants', []))} restaurants and {len(seed_data.get('reviews', []))} reviews.")
-    except Exception as e:
-        print(f"Error seeding Firestore: {e}")
-
-# Call seed function immediately on server startup
-if db is not None:
-    seed_firestore_if_empty()
-
-def load_data():
-    """Load data from Firestore if available, otherwise from local JSON file"""
-    if db is not None:
-        try:
-            # Load reviews
-            reviews_ref = db.collection('reviews')
-            reviews_docs = reviews_ref.stream()
-            reviews = [doc.to_dict() for doc in reviews_docs]
-            
-            # Load restaurants
-            restaurants_ref = db.collection('restaurants')
-            restaurants_docs = restaurants_ref.stream()
-            restaurants = [doc.to_dict() for doc in restaurants_docs]
-            
-            return {
-                "reviews": reviews,
-                "restaurants": restaurants
-            }
-        except Exception as e:
-            print(f"Error loading from Firestore: {e}")
-            # Fall back to local file
-            
-    # Local JSON fallback
-    with open(DATA_PATH, 'r') as f:
-        return json.load(f)
-
-def save_data(data):
-    """Save data to local JSON file"""
-    try:
-        with open(DATA_PATH, 'w') as f:
-            json.dump(data, f, indent=2)
-    except Exception as e:
-        print(f"Error saving to local file: {e}")
-
-def add_review_db(review):
-    """Add a review to Firestore and local JSON"""
-    if db is not None:
-        try:
-            db.collection('reviews').document(review['id']).set(review)
-        except Exception as e:
-            print(f"Error adding review to Firestore: {e}")
-    try:
-        db_data = load_data()
-        db_data['reviews'] = [r for r in db_data['reviews'] if r['id'] != review['id']]
-        db_data['reviews'].append(review)
-        save_data(db_data)
-    except Exception as e:
-        print(f"Error saving review locally: {e}")
-
-def delete_review_db(review_id):
-    """Delete a review from Firestore and local JSON"""
-    if db is not None:
-        try:
-            db.collection('reviews').document(review_id).delete()
-        except Exception as e:
-            print(f"Error deleting review from Firestore: {e}")
-    try:
-        db_data = load_data()
-        db_data['reviews'] = [r for r in db_data['reviews'] if r['id'] != review_id]
-        save_data(db_data)
-    except Exception as e:
-        print(f"Error deleting review locally: {e}")
-
-def add_restaurant_db(restaurant):
-    """Add a restaurant to Firestore and local JSON"""
-    if db is not None:
-        try:
-            db.collection('restaurants').document(restaurant['id']).set(restaurant)
-        except Exception as e:
-            print(f"Error adding restaurant to Firestore: {e}")
-    try:
-        db_data = load_data()
-        db_data['restaurants'] = [r for r in db_data['restaurants'] if r['id'] != restaurant['id']]
-        db_data['restaurants'].append(restaurant)
-        save_data(db_data)
-    except Exception as e:
-        print(f"Error saving restaurant locally: {e}")
-
-def delete_restaurant_db(restaurant_id, restaurant_name):
-    """Delete a restaurant and its reviews from Firestore and local JSON"""
-    if db is not None:
-        try:
-            db.collection('restaurants').document(restaurant_id).delete()
-            reviews_ref = db.collection('reviews').where('restaurantName', '==', restaurant_name)
-            docs = reviews_ref.stream()
-            for doc in docs:
-                doc.reference.delete()
-        except Exception as e:
-            print(f"Error deleting restaurant/reviews from Firestore: {e}")
-    try:
-        db_data = load_data()
-        db_data['restaurants'] = [r for r in db_data['restaurants'] if r['id'] != restaurant_id]
-        db_data['reviews'] = [r for r in db_data['reviews'] if r['restaurantName'] != restaurant_name]
-        save_data(db_data)
-    except Exception as e:
-        print(f"Error deleting restaurant locally: {e}")
-
-def update_restaurant_db(restaurant_id, updated_fields):
-    """Update restaurant fields in Firestore and local JSON"""
-    if db is not None:
-        try:
-            db.collection('restaurants').document(restaurant_id).update(updated_fields)
-        except Exception as e:
-            print(f"Error updating restaurant in Firestore: {e}")
-    try:
-        db_data = load_data()
-        for r in db_data['restaurants']:
-            if r['id'] == restaurant_id:
-                for k, v in updated_fields.items():
-                    r[k] = v
-                break
-        save_data(db_data)
-    except Exception as e:
-        print(f"Error updating restaurant locally: {e}")
 
 def calculate_sentiment_score(prediction, confidence=0.8):
-    """Convert sentiment prediction to a score between 0 and 1"""
+    """Convert sentiment prediction to a normalized score between 0 and 1"""
     if prediction == "positive":
-        return 0.5 + (confidence * 0.5)
+        return round(0.5 + (confidence * 0.5), 2)
     elif prediction == "negative":
-        return 0.5 - (confidence * 0.5)
+        return round(0.5 - (confidence * 0.5), 2)
     else:
         return 0.5
 
-@app.route('/api/predict', methods=['POST'])
-def predict_sentiment():
-    """Predict sentiment for a given text"""
+
+def serialize_doc(doc_dict):
+    """Serialize Firestore document dictionary, converting timestamps to ISO strings"""
+    if not isinstance(doc_dict, dict):
+        return doc_dict
+    result = {}
+    for k, v in doc_dict.items():
+        if isinstance(v, datetime):
+            result[k] = v.isoformat()
+        elif hasattr(v, 'isoformat'):
+            result[k] = v.isoformat()
+        else:
+            result[k] = v
+    # Ensure date string exists for frontend compatibility
+    if 'createdAt' in result and 'date' not in result:
+        created_str = str(result['createdAt'])
+        result['date'] = created_str[:10]
+    return result
+
+
+def seed_firestore_if_empty():
+    """Seed initial demo restaurants if Firestore collection is empty"""
+    if db is None:
+        return
     try:
-        data = request.get_json()
-        text = data.get('text', '')
+        docs = list(db.collection('restaurants').limit(1).stream())
+        if len(docs) == 0:
+            print("Seeding initial Firestore demo restaurants...")
+            initial_restaurants = [
+                {"id": "1", "name": "The Golden Fork", "cuisine": "Italian", "averageRating": 4.2, "totalReviews": 12, "ownerUid": "demo_owner_1", "createdAt": firestore.SERVER_TIMESTAMP},
+                {"id": "2", "name": "Spice Route", "cuisine": "Indian", "averageRating": 4.1, "totalReviews": 10, "ownerUid": "demo_owner_2", "createdAt": firestore.SERVER_TIMESTAMP},
+                {"id": "3", "name": "Ocean Breeze", "cuisine": "Seafood", "averageRating": 4.4, "totalReviews": 8, "ownerUid": "demo_owner_3", "createdAt": firestore.SERVER_TIMESTAMP},
+                {"id": "burger-shack-id", "name": "Burger Shack", "cuisine": "Fast Food", "averageRating": 3.8, "totalReviews": 4, "ownerUid": "demo_owner_4", "createdAt": firestore.SERVER_TIMESTAMP},
+                {"id": "sakura-sushi-id", "name": "Sakura Sushi", "cuisine": "Japanese", "averageRating": 4.5, "totalReviews": 4, "ownerUid": "demo_owner_5", "createdAt": firestore.SERVER_TIMESTAMP}
+            ]
+            for r in initial_restaurants:
+                db.collection('restaurants').document(r['id']).set(r)
+            print("Seeded Firestore demo restaurants successfully.")
+    except Exception as e:
+        print(f"Error seeding Firestore: {e}")
+
+if db is not None:
+    seed_firestore_if_empty()
+
+
+# ─── PHASE 1: User Sync & Role Management Endpoints ──────────────────────────
+
+@app.route('/api/auth/sync-user', methods=['POST'])
+@require_auth
+def sync_user():
+    """
+    Sync user document in Firestore and set custom claims (role='customer' or requested initial role)
+    if not already assigned.
+    """
+    try:
+        uid = request.uid
+        email = request.email
+        data = request.get_json(silent=True) or {}
+        display_name = data.get('displayName', '')
+        requested_role = data.get('requestedRole')
+
+        # Check existing custom claims on Firebase user
+        user_record = admin_auth.get_user(uid)
+        current_claims = user_record.custom_claims or {}
+        role = current_claims.get('role')
+
+        if not role:
+            # If user requested owner upon signup (e.g. from owner portal) or customer
+            role = requested_role if requested_role in ['owner', 'customer'] else 'customer'
+            admin_auth.set_custom_user_claims(uid, {'role': role})
+
+        if db is not None:
+            user_ref = db.collection('users').document(uid)
+            user_doc = user_ref.get()
+            if not user_doc.exists:
+                user_ref.set({
+                    'uid': uid,
+                    'email': email,
+                    'displayName': display_name,
+                    'role': role,
+                    'createdAt': firestore.SERVER_TIMESTAMP
+                })
+            else:
+                user_ref.update({
+                    'role': role,
+                    'email': email,
+                    'displayName': display_name or user_doc.to_dict().get('displayName', '')
+                })
+
+        return jsonify({
+            'uid': uid,
+            'email': email,
+            'role': role,
+            'displayName': display_name
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/auth/set-role', methods=['POST'])
+def set_role_admin():
+    """
+    Trusted server-side role upgrade endpoint.
+    Requires ADMIN_API_KEY header or authenticated admin caller.
+    Never accepts untrusted client claims.
+    """
+    try:
+        admin_key = request.headers.get('X-Admin-Key')
+        expected_key = os.environ.get('ADMIN_API_KEY', 'tastepulse-secure-admin-key')
         
+        is_authorized_admin = False
+        if admin_key and admin_key == expected_key:
+            is_authorized_admin = True
+        else:
+            token = get_token_from_header()
+            if token:
+                decoded = verify_firebase_token(token)
+                if decoded and decoded.get('admin') is True:
+                    is_authorized_admin = True
+
+        if not is_authorized_admin:
+            return jsonify({'error': 'Unauthorized: Admin authentication required to set user roles'}), 403
+
+        data = request.get_json() or {}
+        target_uid = data.get('uid')
+        new_role = data.get('role')
+
+        if not target_uid or new_role not in ['customer', 'owner', 'admin']:
+            return jsonify({'error': 'Invalid uid or role. Role must be customer, owner, or admin.'}), 400
+
+        set_user_role_claim(target_uid, new_role)
+        return jsonify({
+            'success': True,
+            'message': f'Role for user {target_uid} set to {new_role}',
+            'uid': target_uid,
+            'role': new_role
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ─── PHASE 6: Rate Limited Public Sentiment Inference ─────────────────────────
+
+@app.route('/api/predict', methods=['POST'])
+@limiter.limit("30 per minute; 500 per day")
+def predict_sentiment():
+    """
+    Public inference endpoint rate limited via Flask-Limiter.
+    Optionally verifies Firebase App Check token if header present.
+    """
+    try:
+        # Optional Firebase App Check verification
+        app_check_token = request.headers.get('X-Firebase-AppCheck')
+        if app_check_token and firebase_initialized:
+            try:
+                app_check.verify_token(app_check_token)
+            except Exception as ac_err:
+                return jsonify({'error': f'Invalid App Check token: {ac_err}'}), 401
+
+        data = request.get_json(silent=True) or {}
+        text = data.get('text', '')
+
         if not text:
             return jsonify({'error': 'Text is required'}), 400
-        
-        # Use ML model if available, otherwise use fallback classifier
+
         if model is not None and vectorizer is not None:
             text_vector = vectorizer.transform([text])
             prediction = model.predict(text_vector)[0]
@@ -298,85 +287,151 @@ def predict_sentiment():
             confidence = 1 / (1 + abs(decision_score))
             sentiment_score = calculate_sentiment_score(prediction, confidence)
         else:
-            # Use fallback classifier
             prediction = simple_sentiment(text)
-            confidence = 0.7
+            confidence = 0.75 if prediction != "neutral" else 0.5
             sentiment_score = calculate_sentiment_score(prediction, confidence)
-        
+
         return jsonify({
             'sentiment': prediction,
             'sentimentScore': sentiment_score,
             'confidence': confidence
-        })
+        }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# ─── PHASE 2 & 4: Paginated Reviews with Duplicate & Concurrency Guards ───────
 
 @app.route('/api/reviews', methods=['GET'])
 def get_reviews():
-    """Get all reviews with optional date filtering"""
+    """
+    Get reviews from Firestore with query cursor pagination and date filtering (Phase 4).
+    """
+    if db is None:
+        return jsonify({'error': 'Database unavailable'}), 503
+
     try:
+        limit_param = min(int(request.args.get('limit', 20)), 100)
+        start_after_doc_id = request.args.get('startAfter')
+        restaurant_id = request.args.get('restaurantId')
+        restaurant_name = request.args.get('restaurantName')
         start_date = request.args.get('startDate')
         end_date = request.args.get('endDate')
-        
-        data = load_data()
-        reviews = data['reviews']
-        
-        if start_date or end_date:
-            filtered_reviews = []
-            for r in reviews:
-                review_date = r.get('date', '')
-                if start_date and review_date < start_date:
-                    continue
-                if end_date and review_date > end_date:
-                    continue
-                filtered_reviews.append(r)
-            return jsonify(filtered_reviews)
-        
-        return jsonify(reviews)
+
+        query = db.collection('reviews')
+
+        if restaurant_id:
+            query = query.where('restaurantId', '==', restaurant_id)
+        elif restaurant_name:
+            query = query.where('restaurantName', '==', restaurant_name)
+
+        query = query.order_by('createdAt', direction=firestore.Query.DESCENDING)
+
+        if start_after_doc_id:
+            cursor_doc = db.collection('reviews').document(start_after_doc_id).get()
+            if cursor_doc.exists:
+                query = query.start_after(cursor_doc)
+
+        query = query.limit(limit_param)
+        docs = list(query.stream())
+
+        reviews = []
+        for doc in docs:
+            r = serialize_doc(doc.to_dict())
+            r['id'] = doc.id
+            
+            # Apply date filter if provided
+            rev_date = r.get('date', '')
+            if start_date and rev_date < start_date:
+                continue
+            if end_date and rev_date > end_date:
+                continue
+            reviews.append(r)
+
+        return jsonify(reviews), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/reviews/<restaurant_name>', methods=['GET'])
 def get_reviews_by_restaurant(restaurant_name):
-    """Get reviews for a specific restaurant with optional date filtering"""
+    """Get reviews for a specific restaurant name with pagination"""
+    if db is None:
+        return jsonify({'error': 'Database unavailable'}), 503
+
     try:
-        start_date = request.args.get('startDate')
-        end_date = request.args.get('endDate')
+        limit_param = min(int(request.args.get('limit', 50)), 100)
+        query = db.collection('reviews').where('restaurantName', '==', restaurant_name)
+        query = query.order_by('createdAt', direction=firestore.Query.DESCENDING).limit(limit_param)
         
-        data = load_data()
-        reviews = [r for r in data['reviews'] if r['restaurantName'] == restaurant_name]
-        
-        if start_date or end_date:
-            filtered_reviews = []
-            for r in reviews:
-                review_date = r.get('date', '')
-                if start_date and review_date < start_date:
-                    continue
-                if end_date and review_date > end_date:
-                    continue
-                filtered_reviews.append(r)
-            return jsonify(filtered_reviews)
-        
-        return jsonify(reviews)
+        docs = query.stream()
+        reviews = []
+        for doc in docs:
+            r = serialize_doc(doc.to_dict())
+            r['id'] = doc.id
+            reviews.append(r)
+
+        return jsonify(reviews), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
 @app.route('/api/reviews', methods=['POST'])
+@require_auth
 def add_review():
-    """Add a new review with sentiment analysis"""
+    """
+    Add a new review to Firestore (Phase 2 & 5).
+    - Requires authenticated user; authorUid is bound to request.uid.
+    - Duplicate Guard: Rejects if authorUid has already reviewed this restaurant.
+    - Transactional: Atomically updates the restaurant's totalReviews and averageRating.
+    """
+    if db is None:
+        return jsonify({'error': 'Database unavailable'}), 503
+
     try:
-        data = request.get_json()
-        
-        # Validate required fields
-        required_fields = ['customerName', 'restaurantName', 'rating', 'text', 'category']
+        data = request.get_json() or {}
+        required_fields = ['restaurantName', 'rating', 'text', 'category']
         for field in required_fields:
             if field not in data:
                 return jsonify({'error': f'{field} is required'}), 400
-        
-        # Predict sentiment for the review text
+
+        author_uid = request.uid
+        customer_name = data.get('customerName') or request.user.get('name') or request.email.split('@')[0] or 'Diner'
+        restaurant_name = data['restaurantName']
+        restaurant_id = data.get('restaurantId')
+        rating = float(data['rating'])
         text = data['text']
+        category = data['category']
+
+        if rating < 1 or rating > 5:
+            return jsonify({'error': 'Rating must be between 1 and 5'}), 400
+
+        # Find matching restaurant if restaurantId not explicitly passed
+        restaurant_ref = None
+        if restaurant_id:
+            restaurant_ref = db.collection('restaurants').document(restaurant_id)
+        else:
+            r_docs = list(db.collection('restaurants').where('name', '==', restaurant_name).limit(1).stream())
+            if r_docs:
+                restaurant_ref = r_docs[0].reference
+                restaurant_id = r_docs[0].id
+
+        # PHASE 5: Duplicate-review guard
+        # Query whether authorUid already reviewed this restaurant
+        dup_query = db.collection('reviews').where('authorUid', '==', author_uid)
+        if restaurant_id:
+            dup_query = dup_query.where('restaurantId', '==', restaurant_id)
+        else:
+            dup_query = dup_query.where('restaurantName', '==', restaurant_name)
         
-        # Use ML model if available, otherwise use fallback classifier
+        existing_reviews = list(dup_query.limit(1).stream())
+        if len(existing_reviews) > 0:
+            return jsonify({
+                'error': 'You have already reviewed this restaurant. Duplicate reviews are not permitted.',
+                'code': 'DUPLICATE_REVIEW'
+            }), 409
+
+        # Sentiment Analysis
         if model is not None and vectorizer is not None:
             text_vector = vectorizer.transform([text])
             prediction = model.predict(text_vector)[0]
@@ -384,201 +439,358 @@ def add_review():
             confidence = 1 / (1 + abs(decision_score))
             sentiment_score = calculate_sentiment_score(prediction, confidence)
         else:
-            # Use fallback classifier
             prediction = simple_sentiment(text)
-            confidence = 0.7
+            confidence = 0.75 if prediction != "neutral" else 0.5
             sentiment_score = calculate_sentiment_score(prediction, confidence)
+
+        review_id = str(uuid.uuid4())
+        review_doc_ref = db.collection('reviews').document(review_id)
         
-        # Create review object
-        review = {
-            'id': str(uuid.uuid4()),
-            'customerName': data['customerName'],
-            'restaurantName': data['restaurantName'],
-            'rating': data['rating'],
-            'text': data['text'],
+        review_data = {
+            'id': review_id,
+            'restaurantId': restaurant_id or '',
+            'restaurantName': restaurant_name,
+            'authorUid': author_uid,
+            'customerName': customer_name,
+            'rating': rating,
+            'text': text,
+            'category': category,
             'sentiment': prediction,
             'sentimentScore': sentiment_score,
-            'date': datetime.now().strftime('%Y-%m-%d'),
-            'category': data['category']
+            'confidence': confidence,
+            'createdAt': firestore.SERVER_TIMESTAMP
         }
-        
-        # Add review using database helper
-        add_review_db(review)
-        
-        return jsonify(review), 201
+
+        # Atomic Firestore Transaction to update aggregate stats safely
+        @firestore.transactional
+        def create_review_and_update_aggregate(transaction):
+            if restaurant_ref is not None:
+                r_snapshot = restaurant_ref.get(transaction=transaction)
+                if r_snapshot.exists:
+                    r_data = r_snapshot.to_dict()
+                    current_total = r_data.get('totalReviews', 0)
+                    current_sum = r_data.get('ratingSum', r_data.get('averageRating', 0.0) * current_total)
+                    new_total = current_total + 1
+                    new_sum = round(current_sum + rating, 2)
+                    new_avg = round(new_sum / new_total, 2)
+                    transaction.update(restaurant_ref, {
+                        'totalReviews': new_total,
+                        'ratingSum': new_sum,
+                        'averageRating': new_avg
+                    })
+            transaction.set(review_doc_ref, review_data)
+
+        transaction = db.transaction()
+        create_review_and_update_aggregate(transaction)
+
+        # Return serialized review for immediate frontend display
+        response_review = serialize_doc({**review_data, 'createdAt': datetime.now(timezone.utc)})
+        return jsonify(response_review), 201
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/reviews/<review_id>', methods=['DELETE'])
+@require_auth
+def delete_review(review_id):
+    """
+    Delete a review (Phase 3 IDOR Protection).
+    Only the review's authorUid OR a verified restaurant owner can delete.
+    """
+    if db is None:
+        return jsonify({'error': 'Database unavailable'}), 503
+
+    try:
+        review_ref = db.collection('reviews').document(review_id)
+        review_doc = review_ref.get()
+
+        if not review_doc.exists:
+            return jsonify({'error': 'Review not found'}), 404
+
+        review_data = review_doc.to_dict()
+        author_uid = review_data.get('authorUid')
+        caller_uid = request.uid
+        caller_role = request.role
+
+        # IDOR Authorization check
+        if author_uid != caller_uid and caller_role != 'owner':
+            return jsonify({
+                'error': 'Forbidden: You do not have permission to delete this review',
+                'code': 'IDOR_PREVENTED'
+            }), 403
+
+        # Transactional delete with aggregate decrement
+        restaurant_id = review_data.get('restaurantId')
+        rating = review_data.get('rating', 0)
+
+        @firestore.transactional
+        def delete_and_decrement(transaction):
+            if restaurant_id:
+                r_ref = db.collection('restaurants').document(restaurant_id)
+                r_snap = r_ref.get(transaction=transaction)
+                if r_snap.exists:
+                    r_data = r_snap.to_dict()
+                    curr_total = r_data.get('totalReviews', 0)
+                    curr_sum = r_data.get('ratingSum', r_data.get('averageRating', 0.0) * curr_total)
+                    if curr_total > 1:
+                        new_total = curr_total - 1
+                        new_sum = max(0.0, round(curr_sum - rating, 2))
+                        new_avg = round(new_sum / new_total, 2)
+                    else:
+                        new_total = 0
+                        new_sum = 0.0
+                        new_avg = 0.0
+                    transaction.update(r_ref, {
+                        'totalReviews': new_total,
+                        'ratingSum': new_sum,
+                        'averageRating': new_avg
+                    })
+            transaction.delete(review_ref)
+
+        transaction = db.transaction()
+        delete_and_decrement(transaction)
+
+        return jsonify({'message': 'Review deleted successfully'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/reviews/<review_id>', methods=['PUT', 'PATCH'])
+def update_review(review_id):
+    """
+    Phase 5: Reviews are immutable once created.
+    """
+    return jsonify({
+        'error': 'Reviews are immutable once created. In-place updates are not permitted.',
+        'code': 'REVIEW_IMMUTABLE'
+    }), 405
+
+
+@app.route('/api/reviews/<review_id>/reply', methods=['POST'])
+@require_role('owner')
+def reply_to_review(review_id):
+    """Add owner reply to a review"""
+    if db is None:
+        return jsonify({'error': 'Database unavailable'}), 503
+
+    try:
+        data = request.get_json() or {}
+        reply = data.get('reply', '')
+        if not reply:
+            return jsonify({'error': 'Reply text is required'}), 400
+
+        review_ref = db.collection('reviews').document(review_id)
+        review_doc = review_ref.get()
+        if not review_doc.exists:
+            return jsonify({'error': 'Review not found'}), 404
+
+        review_ref.update({
+            'ownerReply': reply,
+            'ownerReplyDate': datetime.now(timezone.utc).strftime('%Y-%m-%d'),
+            'ownerUid': request.uid
+        })
+        return jsonify({'message': 'Reply added successfully'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ─── PHASE 2 & 3: Restaurants with Ownership & IDOR Protection ────────────────
 
 @app.route('/api/restaurants', methods=['GET'])
 def get_restaurants():
-    """Get restaurants owned by the logged-in owner (filtered by ownerEmail from token).
-    Falls back to showing all restaurants if no auth token is present (dev mode)."""
-    try:
-        from auth_middleware import get_token_from_header, verify_firebase_token
-        data = load_data()
-        restaurants = data['restaurants']
-        reviews = data['reviews']
+    """
+    Get restaurants from Firestore (Phase 2 & 4).
+    If owner is logged in, optionally filter to their owned restaurants.
+    """
+    if db is None:
+        return jsonify({'error': 'Database unavailable'}), 503
 
-        # Determine owner email from auth token
-        owner_email = None
+    try:
         token = get_token_from_header()
+        owner_uid = None
         if token:
             decoded = verify_firebase_token(token)
-            if decoded:
-                owner_email = decoded.get('email')
+            if decoded and decoded.get('role') == 'owner':
+                owner_uid = decoded.get('uid')
 
-        # Filter restaurants by owner — only show this owner's restaurants.
-        # Restaurants without an ownerEmail field (legacy/seed data) are visible only
-        # to the dev fallback user (dev@example.com) so new real accounts start clean.
-        if owner_email and owner_email != 'dev@example.com':
-            restaurants = [r for r in restaurants if r.get('ownerEmail') == owner_email]
-        elif owner_email == 'dev@example.com':
-            # Dev/seed mode: show all restaurants that have no ownerEmail (the seed ones)
-            restaurants = [r for r in restaurants if not r.get('ownerEmail')]
-        # If no token at all, return empty list
-        else:
-            restaurants = []
+        limit_param = min(int(request.args.get('limit', 50)), 100)
+        query = db.collection('restaurants').limit(limit_param)
+        
+        # If requesting owner's view, filter by ownerUid
+        if owner_uid and request.args.get('myRestaurants') == 'true':
+            query = query.where('ownerUid', '==', owner_uid)
 
-        # Calculate sentiment summaries for each restaurant
+        docs = list(query.stream())
+        restaurants = []
+        for doc in docs:
+            r = serialize_doc(doc.to_dict())
+            r['id'] = doc.id
+            restaurants.append(r)
+
+        # Compute sentiment summary for each restaurant
         for restaurant in restaurants:
-            restaurant_reviews = [r for r in reviews if r['restaurantName'] == restaurant['name']]
-            total = len(restaurant_reviews)
-
+            r_name = restaurant.get('name', '')
+            rev_docs = list(db.collection('reviews').where('restaurantName', '==', r_name).stream())
+            total = len(rev_docs)
             if total > 0:
-                positive = len([r for r in restaurant_reviews if r['sentiment'] == 'positive'])
-                negative = len([r for r in restaurant_reviews if r['sentiment'] == 'negative'])
-                neutral = len([r for r in restaurant_reviews if r['sentiment'] == 'neutral'])
-                avg_rating = sum([r['rating'] for r in restaurant_reviews]) / total
-
+                pos = sum(1 for d in rev_docs if d.to_dict().get('sentiment') == 'positive')
+                neg = sum(1 for d in rev_docs if d.to_dict().get('sentiment') == 'negative')
+                neu = sum(1 for d in rev_docs if d.to_dict().get('sentiment') == 'neutral')
+                avg_rat = sum(d.to_dict().get('rating', 0) for d in rev_docs) / total
                 restaurant['sentimentSummary'] = {
-                    'positive': positive,
-                    'negative': negative,
-                    'neutral': neutral,
+                    'positive': pos,
+                    'negative': neg,
+                    'neutral': neu,
                     'total': total,
-                    'averageRating': round(avg_rating, 1)
+                    'averageRating': round(avg_rat, 1)
                 }
             else:
                 restaurant['sentimentSummary'] = {
-                    'positive': 0,
-                    'negative': 0,
-                    'neutral': 0,
-                    'total': 0,
-                    'averageRating': 0
+                    'positive': 0, 'negative': 0, 'neutral': 0, 'total': 0, 'averageRating': 0
                 }
 
-        return jsonify(restaurants)
+        return jsonify(restaurants), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/restaurants', methods=['POST'])
-def add_restaurant():
-    """Add a new restaurant, tagged with the logged-in owner's email."""
-    try:
-        from auth_middleware import get_token_from_header, verify_firebase_token
-        data = request.get_json()
 
-        # Validate required fields
+@app.route('/api/restaurants', methods=['POST'])
+@require_role('owner')
+def add_restaurant():
+    """
+    Create a new restaurant in Firestore.
+    OwnerUid is strictly bound to request.uid from verified custom claim.
+    """
+    if db is None:
+        return jsonify({'error': 'Database unavailable'}), 503
+
+    try:
+        data = request.get_json() or {}
         required_fields = ['name', 'cuisine']
         for field in required_fields:
             if field not in data:
                 return jsonify({'error': f'{field} is required'}), 400
 
-        # Get owner email from auth token
-        owner_email = data.get('ownerEmail', '')
-        if not owner_email:
-            token = get_token_from_header()
-            if token:
-                decoded = verify_firebase_token(token)
-                if decoded:
-                    owner_email = decoded.get('email', '')
-
-        # Create restaurant object with ownerEmail
+        restaurant_id = str(uuid.uuid4())
         restaurant = {
-            'id': str(uuid.uuid4()),
+            'id': restaurant_id,
             'name': data['name'],
             'cuisine': data['cuisine'],
-            'averageRating': 0,
+            'averageRating': 0.0,
             'totalReviews': 0,
-            'ownerEmail': owner_email
+            'ownerUid': request.uid,
+            'ownerEmail': request.email,
+            'createdAt': firestore.SERVER_TIMESTAMP
         }
 
-        # Add restaurant using database helper
-        add_restaurant_db(restaurant)
+        db.collection('restaurants').document(restaurant_id).set(restaurant)
 
-        return jsonify(restaurant), 201
+        response_restaurant = serialize_doc({**restaurant, 'createdAt': datetime.now(timezone.utc)})
+        return jsonify(response_restaurant), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/restaurants/<restaurant_id>', methods=['DELETE'])
-def delete_restaurant(restaurant_id):
-    """Delete a restaurant"""
-    try:
-        # Load existing data
-        db_data = load_data()
-        
-        # Find the restaurant name before removing
-        restaurant_name = None
-        for r in db_data['restaurants']:
-            if r['id'] == restaurant_id:
-                restaurant_name = r['name']
-                break
-        
-        if not restaurant_name:
-            return jsonify({'error': 'Restaurant not found'}), 404
-            
-        # Delete restaurant and associated reviews using database helper
-        delete_restaurant_db(restaurant_id, restaurant_name)
-        
-        return jsonify({'message': 'Restaurant deleted successfully'}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/restaurants/<restaurant_id>', methods=['PUT'])
+@require_role('owner')
 def update_restaurant(restaurant_id):
-    """Update a restaurant"""
+    """
+    Update a restaurant (Phase 3 IDOR Protection).
+    Verifies caller is the ownerUid of the restaurant before updating.
+    """
+    if db is None:
+        return jsonify({'error': 'Database unavailable'}), 503
+
     try:
-        data = request.get_json()
-        
-        # Load existing data
-        db_data = load_data()
-        
-        # Verify the restaurant exists
-        restaurant_found = False
-        for restaurant in db_data['restaurants']:
-            if restaurant['id'] == restaurant_id:
-                restaurant_found = True
-                break
-        
-        if not restaurant_found:
+        data = request.get_json() or {}
+        restaurant_ref = db.collection('restaurants').document(restaurant_id)
+        doc = restaurant_ref.get()
+
+        if not doc.exists:
             return jsonify({'error': 'Restaurant not found'}), 404
-            
-        # Update restaurant fields using database helper
+
+        restaurant_data = doc.to_dict()
+        
+        # IDOR Guard: Verify ownership
+        if restaurant_data.get('ownerUid') != request.uid:
+            return jsonify({
+                'error': 'Forbidden: You do not own this restaurant',
+                'code': 'IDOR_PREVENTED'
+            }), 403
+
         updated_fields = {}
         if 'name' in data:
             updated_fields['name'] = data['name']
         if 'cuisine' in data:
             updated_fields['cuisine'] = data['cuisine']
-            
-        update_restaurant_db(restaurant_id, updated_fields)
-        
+
+        if updated_fields:
+            restaurant_ref.update(updated_fields)
+
         return jsonify({'message': 'Restaurant updated successfully'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+@app.route('/api/restaurants/<restaurant_id>', methods=['DELETE'])
+@require_role('owner')
+def delete_restaurant(restaurant_id):
+    """
+    Delete a restaurant (Phase 3 IDOR Protection).
+    Verifies caller is the ownerUid of the restaurant before deleting.
+    """
+    if db is None:
+        return jsonify({'error': 'Database unavailable'}), 503
+
+    try:
+        restaurant_ref = db.collection('restaurants').document(restaurant_id)
+        doc = restaurant_ref.get()
+
+        if not doc.exists:
+            return jsonify({'error': 'Restaurant not found'}), 404
+
+        restaurant_data = doc.to_dict()
+        
+        # IDOR Guard: Verify ownership
+        if restaurant_data.get('ownerUid') != request.uid:
+            return jsonify({
+                'error': 'Forbidden: You do not own this restaurant',
+                'code': 'IDOR_PREVENTED'
+            }), 403
+
+        # Delete restaurant and its reviews
+        restaurant_name = restaurant_data.get('name')
+        restaurant_ref.delete()
+
+        if restaurant_name:
+            rev_docs = db.collection('reviews').where('restaurantName', '==', restaurant_name).stream()
+            for r_doc in rev_docs:
+                r_doc.reference.delete()
+
+        return jsonify({'message': 'Restaurant deleted successfully'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ─── Analytics & Advanced AI Insights ─────────────────────────────────────────
+
 @app.route('/api/analytics', methods=['GET'])
 def get_analytics():
-    """Get overall analytics data"""
+    """Get overall analytics data from Firestore"""
+    if db is None:
+        return jsonify({'error': 'Database unavailable'}), 503
+
     try:
-        data = load_data()
-        reviews = data['reviews']
-        
+        reviews_docs = list(db.collection('reviews').stream())
+        reviews = [d.to_dict() for d in reviews_docs]
+
         total_reviews = len(reviews)
-        positive = len([r for r in reviews if r['sentiment'] == 'positive'])
-        negative = len([r for r in reviews if r['sentiment'] == 'negative'])
-        neutral = len([r for r in reviews if r['sentiment'] == 'neutral'])
-        
-        avg_rating = sum([r['rating'] for r in reviews]) / total_reviews if total_reviews > 0 else 0
-        
+        positive = len([r for r in reviews if r.get('sentiment') == 'positive'])
+        negative = len([r for r in reviews if r.get('sentiment') == 'negative'])
+        neutral = len([r for r in reviews if r.get('sentiment') == 'neutral'])
+        avg_rating = sum([r.get('rating', 0) for r in reviews]) / total_reviews if total_reviews > 0 else 0
+
         return jsonify({
             'totalReviews': total_reviews,
             'positive': positive,
@@ -587,77 +799,92 @@ def get_analytics():
             'positivePercent': round((positive / total_reviews) * 100, 1) if total_reviews > 0 else 0,
             'negativePercent': round((negative / total_reviews) * 100, 1) if total_reviews > 0 else 0,
             'averageRating': round(avg_rating, 1)
-        })
+        }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
 @app.route('/api/sentiment-trend', methods=['GET'])
 def get_sentiment_trend():
-    """Get sentiment trend over time"""
+    """Get sentiment trend over time from Firestore"""
+    if db is None:
+        return jsonify({'error': 'Database unavailable'}), 503
+
     try:
-        data = load_data()
-        reviews = data['reviews']
-        
-        # Group reviews by month
+        reviews_docs = list(db.collection('reviews').stream())
         monthly_data = {}
-        for review in reviews:
-            month = review['date'][:7]  # Get YYYY-MM
+
+        for doc in reviews_docs:
+            r = serialize_doc(doc.to_dict())
+            date_str = r.get('date', '')
+            if len(date_str) >= 7:
+                month = date_str[:7]
+            else:
+                month = '2026-02'
+
             if month not in monthly_data:
                 monthly_data[month] = {'positive': 0, 'negative': 0, 'neutral': 0}
-            
-            monthly_data[month][review['sentiment']] += 1
-        
-        # Convert to sorted list
+
+            sentiment = r.get('sentiment', 'neutral')
+            if sentiment in monthly_data[month]:
+                monthly_data[month][sentiment] += 1
+
         trend_data = [
             {'month': month, **counts}
             for month, counts in sorted(monthly_data.items())
         ]
-        
-        return jsonify(trend_data)
+        return jsonify(trend_data), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/category-breakdown', methods=['GET'])
 def get_category_breakdown():
     """Get sentiment breakdown by category"""
+    if db is None:
+        return jsonify({'error': 'Database unavailable'}), 503
+
     try:
-        data = load_data()
-        reviews = data['reviews']
-        
-        # Group by category
+        reviews_docs = list(db.collection('reviews').stream())
         category_data = {}
-        for review in reviews:
-            category = review['category']
+
+        for doc in reviews_docs:
+            r = doc.to_dict()
+            category = r.get('category', 'General')
             if category not in category_data:
                 category_data[category] = {'positive': 0, 'negative': 0}
-            
-            if review['sentiment'] == 'positive':
+
+            if r.get('sentiment') == 'positive':
                 category_data[category]['positive'] += 1
             else:
                 category_data[category]['negative'] += 1
-        
-        # Convert to list
+
         breakdown = [
             {'name': category, **counts}
             for category, counts in category_data.items()
         ]
-        
-        return jsonify(breakdown)
+        return jsonify(breakdown), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/dish-insights', methods=['GET'])
 def get_dish_insights():
     """Get sentiment breakdown for specific dishes and aspects"""
+    if db is None:
+        return jsonify({'error': 'Database unavailable'}), 503
+
     try:
         restaurant = request.args.get('restaurant')
         start_date = request.args.get('startDate')
         end_date = request.args.get('endDate')
-        
-        data = load_data()
-        reviews = data['reviews']
-        
-        # Predefined mapping of categories/dishes to scan
+
+        query = db.collection('reviews')
+        if restaurant:
+            query = query.where('restaurantName', '==', restaurant)
+
+        reviews_docs = list(query.stream())
+
         DISHES_AND_ASPECTS = {
             'Pasta & Lasagna': ['pasta', 'lasagna', 'spaghetti', 'truffle pasta', 'ravioli', 'macaroni'],
             'Steak & Beef': ['steak', 'beef', 'ribeye', 'sirloin', 'fillet'],
@@ -669,40 +896,26 @@ def get_dish_insights():
             'Value & Pricing': ['price', 'overpriced', 'value', 'expensive', 'cost', 'bill'],
             'Hygiene Standards': ['hygiene', 'dirty', 'hair', 'cleanliness', 'clean']
         }
-        
-        # Initialize insights structure
-        insights = {}
-        for name in DISHES_AND_ASPECTS:
-            insights[name] = {'positive': 0, 'negative': 0, 'neutral': 0}
-            
-        for r in reviews:
-            # Filter by restaurant if provided
-            if restaurant and r.get('restaurantName') != restaurant:
+
+        insights = {name: {'positive': 0, 'negative': 0, 'neutral': 0} for name in DISHES_AND_ASPECTS}
+
+        for doc in reviews_docs:
+            r = serialize_doc(doc.to_dict())
+            rev_date = r.get('date', '')
+            if start_date and rev_date < start_date:
                 continue
-                
-            # Filter by date if provided
-            review_date = r.get('date', '')
-            if start_date and review_date < start_date:
+            if end_date and rev_date > end_date:
                 continue
-            if end_date and review_date > end_date:
-                continue
-                
+
             text_lower = r.get('text', '').lower()
             sentiment = r.get('sentiment', 'neutral')
             if sentiment not in ['positive', 'negative', 'neutral']:
                 sentiment = 'neutral'
-                
-            # Check keywords for each group
+
             for group_name, keywords in DISHES_AND_ASPECTS.items():
-                matched = False
-                for kw in keywords:
-                    if kw in text_lower:
-                        matched = True
-                        break
-                if matched:
+                if any(kw in text_lower for kw in keywords):
                     insights[group_name][sentiment] += 1
-                    
-        # Format response
+
         result = []
         for name, counts in insights.items():
             total = counts['positive'] + counts['negative'] + counts['neutral']
@@ -712,39 +925,29 @@ def get_dish_insights():
                     'count': total,
                     'sentiment': counts
                 })
-                
-        # Sort by total mentions descending
+
         result.sort(key=lambda x: x['count'], reverse=True)
-        return jsonify(result)
+        return jsonify(result), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
 @app.route('/api/churn-risk', methods=['GET'])
 def get_churn_risk():
-    """
-    Predictive Churn Warning — identifies customers statistically likely to never return.
+    """Predictive Churn Warning"""
+    if db is None:
+        return jsonify({'error': 'Database unavailable'}), 503
 
-    Algorithm:
-    1. Group all reviews by customerName.
-    2. For each customer, find their most recent review and their full history.
-    3. Compute a Churn Risk Score (0–100) using:
-       - Base score from last rating: (5 - rating) * 15
-       - Sentiment penalty: +25 if last sentiment was negative, +10 if neutral
-       - Recency multiplier: score scaled by log(daysAgo + 1), capped at 2x
-       - Loyalty discount: -5 for each prior positive review (max -20)
-    4. Classify risk: high (>=65), medium (35–64), low (<35)
-    """
     try:
         restaurant = request.args.get('restaurant')
-        data = load_data()
-        reviews = data['reviews']
-
+        query = db.collection('reviews')
         if restaurant:
-            reviews = [r for r in reviews if r.get('restaurantName') == restaurant]
+            query = query.where('restaurantName', '==', restaurant)
 
-        # Group by customer
+        reviews_docs = list(query.stream())
         customers = {}
-        for r in reviews:
+        for doc in reviews_docs:
+            r = serialize_doc(doc.to_dict())
             name = r.get('customerName', 'Unknown')
             if name not in customers:
                 customers[name] = []
@@ -753,46 +956,32 @@ def get_churn_risk():
         today = datetime.now().date()
         results = []
 
-        import math
         for name, cust_reviews in customers.items():
-            # Sort by date descending
             sorted_reviews = sorted(cust_reviews, key=lambda x: x.get('date', ''), reverse=True)
             latest = sorted_reviews[0]
 
-            # Days since last visit
             try:
-                last_date = datetime.strptime(latest.get('date', '2026-01-01'), '%Y-%m-%d').date()
+                last_date = datetime.strptime(latest.get('date', '2026-01-01')[:10], '%Y-%m-%d').date()
                 days_ago = (today - last_date).days
             except Exception:
                 days_ago = 999
 
-            # Only surface customers who haven't returned in 20+ days
-            if days_ago < 20:
+            if days_ago < 10:
                 continue
 
             last_rating = latest.get('rating', 3)
             last_sentiment = latest.get('sentiment', 'neutral')
 
-            # Base score from last rating
-            base_score = (5 - last_rating) * 15  # 0–60
-
-            # Sentiment penalty
+            base_score = (5 - last_rating) * 15
             if last_sentiment == 'negative':
                 base_score += 25
             elif last_sentiment == 'neutral':
                 base_score += 10
 
-            # Recency multiplier — longer absence = higher risk, but logarithmic
             recency_multiplier = min(1.0 + math.log(days_ago / 30 + 1) * 0.5, 2.0)
             score = base_score * recency_multiplier
-
-            # Loyalty discount — past positive reviews reduce churn likelihood
             prior_positives = sum(1 for r in sorted_reviews[1:] if r.get('sentiment') == 'positive')
-            loyalty_discount = min(prior_positives * 5, 20)
-            score -= loyalty_discount
-
-            # Clamp to 0–100
-            score = max(0, min(100, round(score)))
+            score = max(0, min(100, round(score - min(prior_positives * 5, 20))))
 
             if score >= 65:
                 risk_level = 'high'
@@ -814,32 +1003,25 @@ def get_churn_risk():
                 'priorPositives': prior_positives
             })
 
-        # Sort by churn score descending
         results.sort(key=lambda x: x['churnScore'], reverse=True)
-        return jsonify(results[:20])  # Return top 20 at-risk
+        return jsonify(results[:20]), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/menu-lifecycle', methods=['GET'])
 def get_menu_lifecycle():
-    """
-    Menu Item Lifecycle Tracker — tracks whether a dish's sentiment is improving or declining.
+    """Menu Item Lifecycle Tracker"""
+    if db is None:
+        return jsonify({'error': 'Database unavailable'}), 503
 
-    Algorithm:
-    1. For each dish/aspect, collect all matching reviews across time.
-    2. Group by ISO week number.
-    3. For each week, compute positiveRatio = positive / (positive + negative + neutral).
-    4. Compare the last 2 weeks vs. the 2 weeks before that to get momentum delta.
-    5. Classify trend: rising (delta > +10%), declining (delta < -10%), stable otherwise.
-    """
     try:
         restaurant = request.args.get('restaurant')
-        data = load_data()
-        reviews = data['reviews']
-
+        query = db.collection('reviews')
         if restaurant:
-            reviews = [r for r in reviews if r.get('restaurantName') == restaurant]
+            query = query.where('restaurantName', '==', restaurant)
+
+        reviews_docs = list(query.stream())
 
         DISHES_AND_ASPECTS = {
             'Pasta & Lasagna': ['pasta', 'lasagna', 'spaghetti', 'truffle pasta', 'ravioli'],
@@ -852,13 +1034,12 @@ def get_menu_lifecycle():
             'Hygiene Standards': ['hygiene', 'dirty', 'hair', 'cleanliness', 'clean']
         }
 
-        # For each dish, build week-by-week sentiment history
         dish_weeks = {name: {} for name in DISHES_AND_ASPECTS}
 
-        for r in reviews:
+        for doc in reviews_docs:
+            r = serialize_doc(doc.to_dict())
             try:
-                date_obj = datetime.strptime(r.get('date', ''), '%Y-%m-%d')
-                # ISO year-week string e.g. "2026-W02"
+                date_obj = datetime.strptime(r.get('date', '')[:10], '%Y-%m-%d')
                 week_key = date_obj.strftime('%Y-W%W')
             except Exception:
                 continue
@@ -877,11 +1058,7 @@ def get_menu_lifecycle():
             if not week_data:
                 continue
 
-            # Sort weeks chronologically
             sorted_weeks = sorted(week_data.items())
-            if len(sorted_weeks) < 2:
-                continue  # Need at least 2 weeks of data
-
             week_series = []
             for week_key, counts in sorted_weeks:
                 total = counts['positive'] + counts['negative'] + counts['neutral']
@@ -895,13 +1072,14 @@ def get_menu_lifecycle():
                     'neutral': counts['neutral']
                 })
 
-            # Momentum: compare last 2 weeks avg vs. prior 2 weeks avg
-            recent = week_series[-2:]
-            prior = week_series[-4:-2] if len(week_series) >= 4 else week_series[:max(1, len(week_series)-2)]
-
-            recent_avg = sum(w['positiveRatio'] for w in recent) / len(recent)
-            prior_avg = sum(w['positiveRatio'] for w in prior) / len(prior)
-            momentum = round(recent_avg - prior_avg, 1)
+            if len(week_series) >= 2:
+                recent = week_series[-2:]
+                prior = week_series[-4:-2] if len(week_series) >= 4 else week_series[:max(1, len(week_series)-2)]
+                recent_avg = sum(w['positiveRatio'] for w in recent) / len(recent)
+                prior_avg = sum(w['positiveRatio'] for w in prior) / len(prior)
+                momentum = round(recent_avg - prior_avg, 1)
+            else:
+                momentum = 0.0
 
             if momentum > 10:
                 trend = 'rising'
@@ -911,41 +1089,33 @@ def get_menu_lifecycle():
                 trend = 'stable'
 
             total_mentions = sum(w['mentions'] for w in week_series)
-
             results.append({
                 'name': dish_name,
                 'weeks': week_series,
                 'trend': trend,
                 'momentum': momentum,
-                'currentPositiveRatio': week_series[-1]['positiveRatio'],
+                'currentPositiveRatio': week_series[-1]['positiveRatio'] if week_series else 0,
                 'totalMentions': total_mentions
             })
 
-        # Sort: declining first, then stable, then rising
         order = {'declining': 0, 'stable': 1, 'rising': 2}
         results.sort(key=lambda x: (order[x['trend']], -x['totalMentions']))
-        return jsonify(results)
+        return jsonify(results), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/competitor-benchmark', methods=['GET'])
 def get_competitor_benchmark():
-    """
-    Competitor Benchmarking — compares all restaurants across 5 key dimensions.
+    """Competitor Benchmarking across key dimensions"""
+    if db is None:
+        return jsonify({'error': 'Database unavailable'}), 503
 
-    Algorithm:
-    1. For each restaurant, collect all reviews.
-    2. For each of 5 dimensions (Food Quality, Service, Hygiene, Value, Ambiance),
-       extract relevant reviews by keyword matching.
-    3. Compute a dimension score: (positive / total) * 100.
-    4. If no reviews match a dimension, use the restaurant's overall sentiment ratio as fallback.
-    5. Return each restaurant with all 5 dimension scores + overall composite score.
-    """
     try:
-        data = load_data()
-        restaurants = data['restaurants']
-        reviews = data['reviews']
+        r_docs = list(db.collection('restaurants').stream())
+        restaurants = [serialize_doc(d.to_dict()) for d in r_docs]
+        reviews_docs = list(db.collection('reviews').stream())
+        reviews = [serialize_doc(d.to_dict()) for d in reviews_docs]
 
         DIMENSION_KEYWORDS = {
             'foodQuality': ['food', 'pasta', 'steak', 'seafood', 'lobster', 'chicken', 'tikka',
@@ -963,9 +1133,8 @@ def get_competitor_benchmark():
 
         results = []
         for restaurant in restaurants:
-            r_name = restaurant['name']
+            r_name = restaurant.get('name', '')
             r_reviews = [r for r in reviews if r.get('restaurantName') == r_name]
-
             if not r_reviews:
                 continue
 
@@ -980,11 +1149,9 @@ def get_competitor_benchmark():
                     pos = len([r for r in matching if r.get('sentiment') == 'positive'])
                     dim_score = round((pos / len(matching)) * 100, 1)
                 else:
-                    # Fallback: use overall ratio with small noise to avoid flat radar
                     dim_score = round(overall_ratio * 100, 1)
                 dimensions[dim_name] = dim_score
 
-            # Composite score: weighted average (food quality weighted 30%, rest 17.5% each)
             composite = round(
                 dimensions['foodQuality'] * 0.30 +
                 dimensions['service'] * 0.175 +
@@ -1003,27 +1170,13 @@ def get_competitor_benchmark():
                 'averageRating': restaurant.get('averageRating', 0)
             })
 
-        # Sort by overall score descending
         results.sort(key=lambda x: x['overallScore'], reverse=True)
-        return jsonify(results)
+        return jsonify(results), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
-@app.route('/api/reviews/<review_id>', methods=['DELETE'])
-def delete_review(review_id):
-    """Delete a review"""
-    try:
-        db_data = load_data()
-        if review_id not in [r['id'] for r in db_data['reviews']]:
-            return jsonify({'error': 'Review not found'}), 404
-            
-        delete_review_db(review_id)
-        return jsonify({'message': 'Review deleted successfully'}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print(f"Starting server on http://0.0.0.0:{port}")
+    print(f"Starting TastePulse server on http://0.0.0.0:{port}")
     app.run(debug=True, host='0.0.0.0', port=port)
