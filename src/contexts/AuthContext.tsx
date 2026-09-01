@@ -124,42 +124,69 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // Check if demo user was saved in localStorage
     const savedDemoRole = localStorage.getItem("tastepulse_demo_role") as "owner" | "customer" | null;
     
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        setUser(firebaseUser);
-        setIsDemo(false);
-        localStorage.removeItem("tastepulse_demo_role");
-        const verifiedRole = await fetchVerifiedRole(firebaseUser);
-        if (verifiedRole) {
-          setRole(verifiedRole);
-        } else {
-          setRole("customer");
-        }
-        syncUserWithBackend(firebaseUser).catch(() => {});
-      } else if (savedDemoRole) {
-        // Restore demo session
-        setIsDemo(true);
-        if (savedDemoRole === "owner") {
-          setUser(DEMO_OWNER_USER);
-          setRole("owner");
-        } else {
-          setUser(DEMO_CUSTOMER_USER);
-          setRole("customer");
-        }
-      } else {
-        setUser(null);
-        setRole(null);
-        setIsDemo(false);
-      }
+    let unsubscribe = () => {};
+    const safetyTimer = setTimeout(() => {
       setLoading(false);
-    });
+    }, 400);
 
-    return () => unsubscribe();
+    try {
+      if (auth && typeof auth.onAuthStateChanged === 'function') {
+        unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+          clearTimeout(safetyTimer);
+          if (firebaseUser) {
+            setUser(firebaseUser);
+            setIsDemo(false);
+            localStorage.removeItem("tastepulse_demo_role");
+            const verifiedRole = await fetchVerifiedRole(firebaseUser);
+            if (verifiedRole) {
+              setRole(verifiedRole);
+            } else {
+              setRole("customer");
+            }
+            syncUserWithBackend(firebaseUser).catch(() => {});
+          } else if (savedDemoRole) {
+            // Restore demo session
+            setIsDemo(true);
+            if (savedDemoRole === "owner") {
+              setUser(DEMO_OWNER_USER);
+              setRole("owner");
+            } else {
+              setUser(DEMO_CUSTOMER_USER);
+              setRole("customer");
+            }
+          } else {
+            setUser(null);
+            setRole(null);
+            setIsDemo(false);
+          }
+          setLoading(false);
+        }, (error) => {
+          console.warn("Auth state observer error:", error);
+          clearTimeout(safetyTimer);
+          setLoading(false);
+        });
+      } else {
+        if (savedDemoRole) {
+          setIsDemo(true);
+          setUser(savedDemoRole === "owner" ? DEMO_OWNER_USER : DEMO_CUSTOMER_USER);
+          setRole(savedDemoRole);
+        }
+        setLoading(false);
+      }
+    } catch (err) {
+      console.warn("Auth initialization error (Shields/offline mode):", err);
+      setLoading(false);
+    }
+
+    return () => {
+      clearTimeout(safetyTimer);
+      unsubscribe();
+    };
   }, []);
 
   const refreshRole = async (): Promise<"owner" | "customer" | null> => {
     if (isDemo) return role;
-    if (!auth.currentUser) {
+    if (!auth || !auth.currentUser) {
       setRole(null);
       return null;
     }
@@ -179,22 +206,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setRole(targetRole);
 
       // Attempt background Firebase sign-in if possible, but don't block
-      const demoEmail = targetRole === "owner" ? "owner.demo@tastepulse.com" : "customer.demo@tastepulse.com";
-      const demoPassword = "DemoUser123!#";
-      try {
-        await signInWithEmailAndPassword(auth, demoEmail, demoPassword);
-      } catch (err: any) {
-        // If not registered yet, try to create it in the background
-        if (err.code === "auth/user-not-found" || err.code === "auth/invalid-credential") {
-          try {
-            await createUserWithEmailAndPassword(auth, demoEmail, demoPassword);
-            if (auth.currentUser) {
-              await updateProfile(auth.currentUser, {
-                displayName: targetRole === "owner" ? "Chef Marco (Demo Owner)" : "Demo Diner (Customer)"
-              });
+      if (auth && typeof auth.signInWithEmailAndPassword === 'function') {
+        const demoEmail = targetRole === "owner" ? "owner.demo@tastepulse.com" : "customer.demo@tastepulse.com";
+        const demoPassword = "DemoUser123!#";
+        try {
+          await signInWithEmailAndPassword(auth, demoEmail, demoPassword);
+        } catch (err: any) {
+          if (err.code === "auth/user-not-found" || err.code === "auth/invalid-credential") {
+            try {
+              await createUserWithEmailAndPassword(auth, demoEmail, demoPassword);
+              if (auth.currentUser) {
+                await updateProfile(auth.currentUser, {
+                  displayName: targetRole === "owner" ? "Chef Marco (Demo Owner)" : "Demo Diner (Customer)"
+                });
+              }
+            } catch {
+              // Standalone demo fallback mode active
             }
-          } catch {
-            // Standalone demo fallback mode active
           }
         }
       }
@@ -250,7 +278,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     localStorage.removeItem("tastepulse_demo_role");
     setIsDemo(false);
     try {
-      await signOut(auth);
+      if (auth && typeof auth.signOut === 'function') {
+        await signOut(auth);
+      }
     } catch {
       // Ignored
     }
@@ -260,7 +290,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   return (
     <AuthContext.Provider value={{ user, role, loading, isDemo, signIn, signUp, signInWithGoogle, loginAsDemo, logout, refreshRole }}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

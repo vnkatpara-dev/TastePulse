@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ErrorBoundary from "./components/ErrorBoundary";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import OwnerLogin from "./pages/OwnerLogin";
@@ -15,38 +16,41 @@ import CustomerDashboard from "./pages/CustomerDashboard";
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/owner/login" element={<OwnerLogin />} />
-            <Route path="/customer/login" element={<CustomerLogin />} />
-            <Route 
-              path="/owner/dashboard" 
-              element={
-                <ProtectedRoute requiredRole="owner">
-                  <OwnerDashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/customer/dashboard" 
-              element={
-                <ProtectedRoute requiredRole="customer">
-                  <CustomerDashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <AuthProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/owner/login" element={<OwnerLogin />} />
+              <Route path="/customer/login" element={<CustomerLogin />} />
+              <Route 
+                path="/owner/dashboard" 
+                element={
+                  <ProtectedRoute requiredRole="owner">
+                    <OwnerDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/customer/dashboard" 
+                element={
+                  <ProtectedRoute requiredRole="customer">
+                    <CustomerDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;
+
