@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { ChefHat, UtensilsCrossed, BarChart3, MessageSquare } from "lucide-react";
+import { ChefHat, UtensilsCrossed, BarChart3, MessageSquare, User } from "lucide-react";
 import restaurantHero from "@/assets/restaurant-hero.jpg";
 
 const Index = () => {
