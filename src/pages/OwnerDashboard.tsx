@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from "recharts";
-import { MessageSquare, TrendingUp, ThumbsUp, ThumbsDown, LogOut, Star, Loader2, Plus, Pencil, Trash2, X, Download, Lightbulb, ChefHat, AlertTriangle, CheckCircle, Users, BarChart2, Trophy } from "lucide-react";
+import { MessageSquare, TrendingUp, ThumbsUp, ThumbsDown, LogOut, Star, Loader2, Plus, Pencil, Trash2, X, Download, Lightbulb, ChefHat, AlertTriangle, CheckCircle, Users, BarChart2, Trophy, Sparkles, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -63,7 +63,7 @@ const getCategorySuggestions = (categoryData: CategoryBreakdown[]): { category: 
 
 const OwnerDashboard = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loginAsDemo, logout } = useAuth();
   const reportRef = useRef<HTMLDivElement>(null);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -72,7 +72,7 @@ const OwnerDashboard = () => {
   const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdown[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-// Dialog state
+  // Dialog state
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingRestaurant, setEditingRestaurant] = useState<Restaurant | null>(null);
   const [restaurantName, setRestaurantName] = useState("");
@@ -101,67 +101,67 @@ const OwnerDashboard = () => {
   const [competitorBenchmark, setCompetitorBenchmark] = useState<CompetitorBenchmarkItem[]>([]);
   const [isBenchmarkLoading, setIsBenchmarkLoading] = useState(false);
 
+  const fetchInsights = async () => {
+    try {
+      setIsInsightsLoading(true);
+      const data = await getDishInsights(selectedRestaurant?.name || undefined);
+      setDishInsights(data);
+    } catch (error) {
+      console.error("Failed to fetch dish insights:", error);
+    } finally {
+      setIsInsightsLoading(false);
+    }
+  };
+
+  const fetchChurn = async () => {
+    try {
+      setIsChurnLoading(true);
+      const data = await getChurnRisks(selectedRestaurant?.name || undefined);
+      setChurnRisks(data);
+    } catch (error) {
+      console.error("Failed to fetch churn risks:", error);
+    } finally {
+      setIsChurnLoading(false);
+    }
+  };
+
+  const fetchLifecycle = async () => {
+    try {
+      setIsLifecycleLoading(true);
+      const data = await getMenuLifecycle(selectedRestaurant?.name || undefined);
+      setMenuLifecycle(data);
+    } catch (error) {
+      console.error("Failed to fetch menu lifecycle:", error);
+    } finally {
+      setIsLifecycleLoading(false);
+    }
+  };
+
+  const fetchBenchmark = async () => {
+    try {
+      setIsBenchmarkLoading(true);
+      const data = await getCompetitorBenchmark();
+      setCompetitorBenchmark(data);
+    } catch (error) {
+      console.error("Failed to fetch benchmark:", error);
+    } finally {
+      setIsBenchmarkLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchInsights = async () => {
-      try {
-        setIsInsightsLoading(true);
-        const data = await getDishInsights(selectedRestaurant?.name || undefined);
-        setDishInsights(data);
-      } catch (error) {
-        console.error("Failed to fetch dish insights:", error);
-      } finally {
-        setIsInsightsLoading(false);
-      }
-    };
-    
     fetchInsights();
   }, [selectedRestaurant]);
 
-  // Fetch churn risks whenever restaurant selection changes
   useEffect(() => {
-    const fetchChurn = async () => {
-      try {
-        setIsChurnLoading(true);
-        const data = await getChurnRisks(selectedRestaurant?.name || undefined);
-        setChurnRisks(data);
-      } catch (error) {
-        console.error("Failed to fetch churn risks:", error);
-      } finally {
-        setIsChurnLoading(false);
-      }
-    };
     fetchChurn();
   }, [selectedRestaurant]);
 
-  // Fetch menu lifecycle whenever restaurant selection changes
   useEffect(() => {
-    const fetchLifecycle = async () => {
-      try {
-        setIsLifecycleLoading(true);
-        const data = await getMenuLifecycle(selectedRestaurant?.name || undefined);
-        setMenuLifecycle(data);
-      } catch (error) {
-        console.error("Failed to fetch menu lifecycle:", error);
-      } finally {
-        setIsLifecycleLoading(false);
-      }
-    };
     fetchLifecycle();
   }, [selectedRestaurant]);
 
-  // Fetch competitor benchmark once (all restaurants)
   useEffect(() => {
-    const fetchBenchmark = async () => {
-      try {
-        setIsBenchmarkLoading(true);
-        const data = await getCompetitorBenchmark();
-        setCompetitorBenchmark(data);
-      } catch (error) {
-        console.error("Failed to fetch benchmark:", error);
-      } finally {
-        setIsBenchmarkLoading(false);
-      }
-    };
     fetchBenchmark();
   }, []);
 
@@ -190,12 +190,26 @@ const OwnerDashboard = () => {
   useEffect(() => {
     fetchData();
     
-    // Auto-refresh reviews every 30 seconds
+    // Live update listener for instant cross-tab & cross-session customer review updates
+    const handleStoreUpdate = () => {
+      fetchData();
+      fetchInsights();
+      fetchChurn();
+      fetchLifecycle();
+      fetchBenchmark();
+    };
+
+    window.addEventListener('tastepulse_review_store_updated', handleStoreUpdate);
+
+    // Auto-refresh reviews periodically
     const interval = setInterval(() => {
       getReviews().then(setReviews).catch(console.error);
-    }, 30000);
+    }, 10000);
     
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('tastepulse_review_store_updated', handleStoreUpdate);
+    };
   }, []);
 
   // Filter data based on selected restaurant
@@ -515,19 +529,57 @@ const OwnerDashboard = () => {
     );
   }
 
-  const suggestions = getCategorySuggestions(filteredCategoryBreakdown);
+  const handleSwitchToCustomer = async () => {
+    try {
+      await loginAsDemo("customer");
+      toast.success("Switched to Customer Diner Portal");
+      navigate("/customer/dashboard");
+    } catch (err) {
+      console.error("Failed to switch role:", err);
+      navigate("/customer/dashboard");
+    }
+  };
+
+  const handleSignOut = async () => {
+    await logout();
+    navigate("/");
+  };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Top Demo Notice & Interview Quick Switcher Bar */}
+      <div className="bg-gradient-to-r from-amber-700 via-yellow-600 to-amber-800 text-white px-4 py-2 text-xs sm:text-sm font-medium shadow-sm">
+        <div className="container mx-auto flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-yellow-200 animate-pulse" />
+            <span>
+              <strong>Owner Analytics Portal</strong> &mdash; Real-time AI Sentiment &amp; Guest Feedback Intelligence
+            </span>
+          </div>
+          <button
+            onClick={handleSwitchToCustomer}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 hover:bg-white/30 text-white text-xs font-semibold backdrop-blur-sm transition-all border border-white/30"
+          >
+            <span>Switch to Customer View to submit a review</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
       {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b border-border bg-card/70 backdrop-blur-md sticky top-0 z-40">
         <div className="container mx-auto px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <h1 className="font-display text-lg sm:text-2xl font-bold text-foreground truncate">
-              {selectedRestaurant ? selectedRestaurant.name : "Sentiment Dashboard"}
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="font-display text-lg sm:text-2xl font-bold text-foreground truncate">
+                {selectedRestaurant ? selectedRestaurant.name : "TastePulse Sentiment Intelligence"}
+              </h1>
+              <span className="text-xs bg-amber-500/15 text-amber-600 dark:text-amber-400 font-medium px-2 py-0.5 rounded-full border border-amber-500/30">
+                Owner Portal
+              </span>
+            </div>
             <p className="text-xs sm:text-sm text-muted-foreground font-body hidden sm:block">
-              {selectedRestaurant ? `${selectedRestaurant.cuisine} · Owner View` : "Select a restaurant to view details"}
+              {selectedRestaurant ? `${selectedRestaurant.cuisine} · Restaurant Analytics` : `Logged in as: ${user?.displayName || "Chef Marco (Demo Owner)"}`}
             </p>
           </div>
           <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
@@ -541,11 +593,11 @@ const OwnerDashboard = () => {
                 </Button>
               </>
             )}
-            <Button variant="default" size="sm" onClick={handleAddRestaurant} className="font-body">
+            <Button variant="default" size="sm" onClick={handleAddRestaurant} className="font-body gradient-amber text-primary-foreground font-semibold">
               <Plus className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Add Restaurant</span>
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="text-muted-foreground font-body">
-              <LogOut className="w-4 h-4" />
+            <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-muted-foreground font-body">
+              <LogOut className="w-4 h-4 sm:mr-1.5" /><span className="hidden sm:inline">Sign Out</span>
             </Button>
           </div>
         </div>

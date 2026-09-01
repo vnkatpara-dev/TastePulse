@@ -135,6 +135,33 @@ def serialize_doc(doc_dict):
     return result
 
 
+FALLBACK_RESTAURANTS = [
+    {"id": "1", "name": "The Golden Fork", "cuisine": "Italian", "averageRating": 4.2, "totalReviews": 5, "ownerUid": "demo_owner_1"},
+    {"id": "2", "name": "Spice Route", "cuisine": "Indian", "averageRating": 4.1, "totalReviews": 4, "ownerUid": "demo_owner_2"},
+    {"id": "3", "name": "Ocean Breeze", "cuisine": "Seafood", "averageRating": 4.4, "totalReviews": 3, "ownerUid": "demo_owner_3"},
+    {"id": "burger-shack-id", "name": "Burger Shack", "cuisine": "Fast Food", "averageRating": 3.8, "totalReviews": 2, "ownerUid": "demo_owner_4"},
+    {"id": "sakura-sushi-id", "name": "Sakura Sushi", "cuisine": "Japanese", "averageRating": 4.6, "totalReviews": 2, "ownerUid": "demo_owner_5"}
+]
+
+FALLBACK_REVIEWS = [
+    {"id": "seed-1", "restaurantId": "1", "restaurantName": "The Golden Fork", "customerName": "Alice M.", "rating": 5, "text": "Absolutely stunning food and ambiance. The truffle pasta was divine!", "sentiment": "positive", "sentimentScore": 0.95, "date": "2026-02-18", "category": "Food Quality"},
+    {"id": "seed-2", "restaurantId": "1", "restaurantName": "The Golden Fork", "customerName": "Bob T.", "rating": 2, "text": "Service was incredibly slow. Waited 45 minutes for appetizers.", "sentiment": "negative", "sentimentScore": 0.15, "date": "2026-02-17", "category": "Service"},
+    {"id": "seed-3", "restaurantId": "1", "restaurantName": "The Golden Fork", "customerName": "Carol S.", "rating": 4, "text": "Great food but the noise level made conversation difficult.", "sentiment": "neutral", "sentimentScore": 0.6, "date": "2026-02-16", "category": "Ambiance"},
+    {"id": "seed-4", "restaurantId": "1", "restaurantName": "The Golden Fork", "customerName": "Frank H.", "rating": 4, "text": "Lovely date night spot. Wine selection is impressive.", "sentiment": "positive", "sentimentScore": 0.82, "date": "2026-02-13", "category": "Ambiance"},
+    {"id": "seed-5", "restaurantId": "1", "restaurantName": "The Golden Fork", "customerName": "Jack R.", "rating": 4, "text": "Rich flavorful lasagna and delicious dessert.", "sentiment": "positive", "sentimentScore": 0.88, "date": "2026-02-09", "category": "Food Quality"},
+    {"id": "seed-6", "restaurantId": "2", "restaurantName": "Spice Route", "customerName": "David L.", "rating": 5, "text": "Best Indian food I've had! The butter chicken is phenomenal.", "sentiment": "positive", "sentimentScore": 0.92, "date": "2026-02-15", "category": "Food Quality"},
+    {"id": "seed-7", "restaurantId": "2", "restaurantName": "Spice Route", "customerName": "Irene D.", "rating": 4, "text": "Warm and welcoming staff. The naan bread was perfectly crispy.", "sentiment": "positive", "sentimentScore": 0.85, "date": "2026-02-10", "category": "Service"},
+    {"id": "seed-8", "restaurantId": "2", "restaurantName": "Spice Route", "customerName": "Leo M.", "rating": 3, "text": "Decent curry but nothing extraordinary given the hype.", "sentiment": "neutral", "sentimentScore": 0.5, "date": "2026-02-07", "category": "Food Quality"},
+    {"id": "seed-9", "restaurantId": "2", "restaurantName": "Spice Route", "customerName": "Priya S.", "rating": 5, "text": "Authentic spice blends and quick hospitable service.", "sentiment": "positive", "sentimentScore": 0.94, "date": "2026-02-05", "category": "Food Quality"},
+    {"id": "seed-10", "restaurantId": "3", "restaurantName": "Ocean Breeze", "customerName": "Grace K.", "rating": 5, "text": "The freshest seafood in town. Lobster bisque was out of this world!", "sentiment": "positive", "sentimentScore": 0.97, "date": "2026-02-12", "category": "Food Quality"},
+    {"id": "seed-11", "restaurantId": "3", "restaurantName": "Ocean Breeze", "customerName": "Henry P.", "rating": 3, "text": "Food was okay but slightly overpriced for the portion size.", "sentiment": "neutral", "sentimentScore": 0.45, "date": "2026-02-11", "category": "Value"},
+    {"id": "seed-12", "restaurantId": "3", "restaurantName": "Ocean Breeze", "customerName": "Karen B.", "rating": 5, "text": "The sunset view paired with amazing fresh oysters. Unforgettable experience!", "sentiment": "positive", "sentimentScore": 0.94, "date": "2026-02-08", "category": "Ambiance"},
+    {"id": "seed-13", "restaurantId": "burger-shack-id", "restaurantName": "Burger Shack", "customerName": "Tom C.", "rating": 5, "text": "Juicy smash burgers, hot crispy fries, and excellent milkshakes!", "sentiment": "positive", "sentimentScore": 0.91, "date": "2026-02-14", "category": "Food Quality"},
+    {"id": "seed-14", "restaurantId": "burger-shack-id", "restaurantName": "Burger Shack", "customerName": "Sam W.", "rating": 2, "text": "Buns were cold and burger was overcooked. Disappointing visit.", "sentiment": "negative", "sentimentScore": 0.18, "date": "2026-02-02", "category": "Food Quality"},
+    {"id": "seed-15", "restaurantId": "sakura-sushi-id", "restaurantName": "Sakura Sushi", "customerName": "Yuki T.", "rating": 5, "text": "Mastercrafted sashimi and fresh nigiri with impeccable presentation.", "sentiment": "positive", "sentimentScore": 0.96, "date": "2026-02-18", "category": "Food Quality"},
+    {"id": "seed-16", "restaurantId": "sakura-sushi-id", "restaurantName": "Sakura Sushi", "customerName": "Rachel G.", "rating": 5, "text": "Great dining atmosphere, polite servers, and delicious dragon rolls.", "sentiment": "positive", "sentimentScore": 0.93, "date": "2026-02-15", "category": "Service"}
+]
+
 def seed_firestore_if_empty():
     """Seed initial demo restaurants if Firestore collection is empty"""
     if db is None:
@@ -143,15 +170,8 @@ def seed_firestore_if_empty():
         docs = list(db.collection('restaurants').limit(1).stream())
         if len(docs) == 0:
             print("Seeding initial Firestore demo restaurants...")
-            initial_restaurants = [
-                {"id": "1", "name": "The Golden Fork", "cuisine": "Italian", "averageRating": 4.2, "totalReviews": 12, "ownerUid": "demo_owner_1", "createdAt": firestore.SERVER_TIMESTAMP},
-                {"id": "2", "name": "Spice Route", "cuisine": "Indian", "averageRating": 4.1, "totalReviews": 10, "ownerUid": "demo_owner_2", "createdAt": firestore.SERVER_TIMESTAMP},
-                {"id": "3", "name": "Ocean Breeze", "cuisine": "Seafood", "averageRating": 4.4, "totalReviews": 8, "ownerUid": "demo_owner_3", "createdAt": firestore.SERVER_TIMESTAMP},
-                {"id": "burger-shack-id", "name": "Burger Shack", "cuisine": "Fast Food", "averageRating": 3.8, "totalReviews": 4, "ownerUid": "demo_owner_4", "createdAt": firestore.SERVER_TIMESTAMP},
-                {"id": "sakura-sushi-id", "name": "Sakura Sushi", "cuisine": "Japanese", "averageRating": 4.5, "totalReviews": 4, "ownerUid": "demo_owner_5", "createdAt": firestore.SERVER_TIMESTAMP}
-            ]
-            for r in initial_restaurants:
-                db.collection('restaurants').document(r['id']).set(r)
+            for r in FALLBACK_RESTAURANTS:
+                db.collection('restaurants').document(r['id']).set({**r, 'createdAt': firestore.SERVER_TIMESTAMP})
             print("Seeded Firestore demo restaurants successfully.")
     except Exception as e:
         print(f"Error seeding Firestore: {e}")

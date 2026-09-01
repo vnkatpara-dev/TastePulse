@@ -3,18 +3,34 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChefHat, BarChart3, TrendingUp, Shield } from "lucide-react";
+import { ChefHat, BarChart3, TrendingUp, Shield, Sparkles } from "lucide-react";
 import restaurantHero from "@/assets/restaurant-hero.jpg";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const OwnerLogin = () => {
   const navigate = useNavigate();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, loginAsDemo } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const handleDemoOwnerLogin = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      await loginAsDemo("owner");
+      toast.success("Signed in as Demo Restaurant Owner!");
+      navigate("/owner/dashboard");
+    } catch (err: any) {
+      console.error("Demo login error:", err);
+      navigate("/owner/dashboard");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,6 +112,24 @@ const OwnerLogin = () => {
               {error}
             </div>
           )}
+
+          {/* 1-Click Demo Access for Interviewers */}
+          <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold uppercase tracking-wider text-amber-500 flex items-center gap-1.5 font-body">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" /> Live Demo Mode
+              </span>
+              <span className="text-[11px] text-muted-foreground font-body">Instant Access</span>
+            </div>
+            <Button
+              type="button"
+              onClick={handleDemoOwnerLogin}
+              disabled={loading}
+              className="w-full h-11 gradient-amber text-primary-foreground font-body font-semibold shadow-md flex items-center justify-center gap-2"
+            >
+              ⚡ 1-Click Demo Owner Sign In
+            </Button>
+          </div>
 
           <form onSubmit={isSignUp ? handleSignUp : handleLogin} className="space-y-5">
             <div className="space-y-2">

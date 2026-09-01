@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { ChefHat, UtensilsCrossed, BarChart3, MessageSquare, User } from "lucide-react";
+import { ChefHat, UtensilsCrossed, BarChart3, MessageSquare } from "lucide-react";
 import restaurantHero from "@/assets/restaurant-hero.jpg";
 
 const Index = () => {
@@ -14,11 +13,11 @@ const Index = () => {
         <img src={restaurantHero} alt="" className="w-full h-full object-cover" />
         
         {/* Dark overlay for better text readability */}
-        <div className="absolute inset-0 bg-black/50" />
+        <div className="absolute inset-0 bg-black/55" />
         
         {/* Gradient overlays for depth */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-black/40" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-black/50" />
         
         {/* Decorative pattern overlay */}
         <div className="absolute inset-0 opacity-10" style={{
@@ -27,13 +26,13 @@ const Index = () => {
       </div>
 
       {/* Floating decorative elements */}
-      <div className="absolute top-20 left-10 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl" />
-      <div className="absolute bottom-20 right-10 w-48 h-48 bg-orange-500/10 rounded-full blur-3xl" />
+      <div className="absolute top-20 left-10 w-32 h-32 bg-amber-500/15 rounded-full blur-3xl" />
+      <div className="absolute bottom-20 right-10 w-48 h-48 bg-orange-500/15 rounded-full blur-3xl" />
       <div className="absolute top-1/2 left-1/4 w-24 h-24 bg-yellow-500/10 rounded-full blur-2xl" />
 
-      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-6">
+      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 py-8 sm:py-12">
         {/* Logo */}
-        <div className="relative mb-8 animate-fade-in">
+        <div className="relative mb-6 animate-fade-in">
           <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-400 via-amber-500 to-orange-600 flex items-center justify-center shadow-2xl relative overflow-hidden group">
             {/* Animated background glow */}
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
@@ -52,51 +51,59 @@ const Index = () => {
         <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-bold text-white text-center mb-2 animate-fade-in drop-shadow-lg">
           Taste<span className="text-gradient">Pulse</span>
         </h1>
-        <p className="text-base sm:text-lg text-white/80 font-body text-center max-w-sm sm:max-w-md mb-8 sm:mb-12 animate-fade-in px-4">
+        <p className="text-base sm:text-lg text-white/90 font-body text-center max-w-sm sm:max-w-md mb-8 animate-fade-in px-4">
           Discover What People Really Think
         </p>
 
-        {/* Login Cards */}
+        {/* Regular Login Portal Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-2xl px-2 sm:px-0">
-          <button
+          <div
             onClick={() => navigate("/owner/login")}
-            className="group relative rounded-2xl p-6 sm:p-8 text-left transition-all hover:shadow-2xl overflow-hidden animate-fade-in"
+            className="cursor-pointer group relative rounded-2xl p-6 sm:p-7 text-left transition-all hover:shadow-2xl overflow-hidden animate-fade-in border border-amber-500/40 bg-black/40 backdrop-blur-md hover:border-amber-400"
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-amber-600/40 via-orange-600/30 to-transparent rounded-2xl" />
-            <div className="absolute inset-0 border border-amber-500/50 rounded-2xl" />
-            <div className="absolute inset-0 bg-gradient-to-br from-black/20 to-black/40 rounded-2xl" />
-            <div className="absolute inset-0 backdrop-blur-md rounded-2xl" />
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-600/30 via-orange-600/20 to-transparent rounded-2xl" />
             <div className="relative z-10">
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl gradient-amber flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform shadow-lg">
                 <ChefHat className="w-5 h-5 sm:w-6 sm:h-6 text-primary-foreground" />
               </div>
               <h2 className="font-display text-xl sm:text-2xl font-bold text-white mb-1 sm:mb-2">Restaurant Owner</h2>
-              <p className="text-xs sm:text-sm text-white/90 font-body leading-relaxed">Access analytics dashboard, track sentiment trends, and manage feedback.</p>
-              <div className="flex items-center gap-1.5 mt-4 sm:mt-6 text-amber-300 text-sm font-semibold font-body group-hover:gap-2 transition-all">
-                <BarChart3 className="w-4 h-4" /> View Dashboard →
+              <p className="text-xs sm:text-sm text-white/85 font-body leading-relaxed mb-4">
+                Access analytics dashboard, track sentiment trends, and manage feedback.
+              </p>
+              <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                <span className="text-amber-300 text-sm font-semibold font-body flex items-center gap-1 group-hover:gap-2 transition-all">
+                  <BarChart3 className="w-4 h-4" /> Owner Sign In →
+                </span>
+                <span className="text-xs text-amber-200/80 bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-400/30">
+                  Analytics
+                </span>
               </div>
             </div>
-          </button>
+          </div>
 
-          <button
+          <div
             onClick={() => navigate("/customer/login")}
-            className="group relative rounded-2xl p-6 sm:p-8 text-left transition-all hover:shadow-2xl overflow-hidden animate-fade-in"
+            className="cursor-pointer group relative rounded-2xl p-6 sm:p-7 text-left transition-all hover:shadow-2xl overflow-hidden animate-fade-in border border-orange-400/40 bg-black/40 backdrop-blur-md hover:border-orange-300"
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/40 via-amber-500/30 to-transparent rounded-2xl" />
-            <div className="absolute inset-0 border border-orange-400/50 rounded-2xl" />
-            <div className="absolute inset-0 bg-gradient-to-br from-black/20 to-black/40 rounded-2xl" />
-            <div className="absolute inset-0 backdrop-blur-md rounded-2xl" />
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/30 via-amber-500/20 to-transparent rounded-2xl" />
             <div className="relative z-10">
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl gradient-amber flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform shadow-lg">
                 <User className="w-5 h-5 sm:w-6 sm:h-6 text-primary-foreground" />
               </div>
               <h2 className="font-display text-xl sm:text-2xl font-bold text-white mb-1 sm:mb-2">Customer</h2>
-              <p className="text-xs sm:text-sm text-white/90 font-body leading-relaxed">Browse restaurants, read reviews, and share your dining experiences.</p>
-              <div className="flex items-center gap-1.5 mt-4 sm:mt-6 text-amber-300 text-sm font-semibold font-body group-hover:gap-2 transition-all">
-                <MessageSquare className="w-4 h-4" /> Write Reviews →
+              <p className="text-xs sm:text-sm text-white/85 font-body leading-relaxed mb-4">
+                Browse restaurants, read reviews, and share your dining experiences.
+              </p>
+              <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                <span className="text-amber-300 text-sm font-semibold font-body flex items-center gap-1 group-hover:gap-2 transition-all">
+                  <MessageSquare className="w-4 h-4" /> Diner Sign In →
+                </span>
+                <span className="text-xs text-orange-200/80 bg-orange-500/20 px-2 py-0.5 rounded-full border border-orange-400/30">
+                  Reviews
+                </span>
               </div>
             </div>
-          </button>
+          </div>
         </div>
       </div>
     </div>
@@ -104,3 +111,4 @@ const Index = () => {
 };
 
 export default Index;
+
