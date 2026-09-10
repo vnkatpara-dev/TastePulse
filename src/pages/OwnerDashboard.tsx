@@ -303,21 +303,34 @@ const OwnerDashboard = () => {
   const handleDeleteRestaurant = async (restaurantId: string) => {
     if (window.confirm("Are you sure you want to delete this restaurant? All associated reviews will also be deleted.")) {
       try {
+        const target = restaurants.find(r => r.id === restaurantId);
+        const targetName = target?.name?.trim().toLowerCase();
+
         await deleteRestaurant(restaurantId);
+        toast.success("Restaurant deleted successfully");
+
+        // Clear selection if deleted restaurant was selected
+        if (selectedRestaurant?.id === restaurantId || (targetName && selectedRestaurant?.name?.trim().toLowerCase() === targetName)) {
+          setSelectedRestaurant(null);
+        }
+
         // Refresh restaurants list
         const restaurantsData = await getRestaurants();
         setRestaurants(restaurantsData);
+
         // Refresh analytics and reviews
         const [analyticsData, reviewsData] = await Promise.all([
           getAnalytics().catch(() => null),
-          getReviews()
+          getReviews().catch(() => [])
         ]);
         setAnalytics(analyticsData);
         setReviews(reviewsData);
-        // Clear selection if deleted restaurant was selected
-        if (selectedRestaurant?.id === restaurantId) {
-          setSelectedRestaurant(null);
-        }
+
+        // Refresh aux data
+        fetchInsights();
+        fetchChurn();
+        fetchLifecycle();
+        fetchBenchmark();
       } catch (error) {
         console.error("Failed to delete restaurant:", error);
         toast.error("Failed to delete restaurant");
@@ -1037,10 +1050,10 @@ const OwnerDashboard = () => {
                 {/* Visual list with progress bars */}
                 <div className="lg:col-span-2 space-y-4">
                   {dishInsights.map((insight) => {
-                    const total = insight.count;
-                    const posPercent = Math.round((insight.sentiment.positive / total) * 100);
-                    const negPercent = Math.round((insight.sentiment.negative / total) * 100);
-                    const neuPercent = 100 - posPercent - negPercent;
+                    const total = insight.count || 1;
+                    const posPercent = Math.round(((insight.sentiment?.positive ?? 0) / total) * 100);
+                    const negPercent = Math.round(((insight.sentiment?.negative ?? 0) / total) * 100);
+                    const neuPercent = Math.max(0, 100 - posPercent - negPercent);
                     
                     return (
                       <div key={insight.name} className="p-4 rounded-lg bg-background/40 border border-border/40 space-y-2">
@@ -1094,9 +1107,12 @@ const OwnerDashboard = () => {
                       {(() => {
                         const plans: React.ReactNode[] = [];
                         dishInsights.forEach((insight) => {
-                          const negRatio = insight.sentiment.negative / insight.count;
+                          const neg = insight.sentiment?.negative ?? 0;
+                          const pos = insight.sentiment?.positive ?? 0;
+                          const count = insight.count || 1;
+                          const negRatio = neg / count;
                           
-                          if (negRatio >= 0.25 || insight.sentiment.negative > insight.sentiment.positive) {
+                          if (negRatio >= 0.25 || neg > pos) {
                             let actionText = "";
                             let severity: "high" | "medium" = "medium";
                             

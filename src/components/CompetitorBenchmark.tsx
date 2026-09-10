@@ -79,7 +79,7 @@ export default function CompetitorBenchmark({ data, selectedRestaurantName = "Th
   const radarData = ["foodQuality", "service", "hygiene", "value", "ambiance"].map((dim) => {
     const point: Record<string, string | number> = { dimension: DIMENSION_LABELS[dim] };
     data.forEach((r) => {
-      point[r.name] = r.dimensions[dim as keyof typeof r.dimensions];
+      point[r.name] = r.dimensions?.[dim as keyof typeof r.dimensions] ?? 50;
     });
     return point;
   });
@@ -89,11 +89,13 @@ export default function CompetitorBenchmark({ data, selectedRestaurantName = "Th
   ["foodQuality", "service", "hygiene", "value", "ambiance"].forEach((dim) => {
     let best = data[0];
     data.forEach((r) => {
-      if (r.dimensions[dim as keyof typeof r.dimensions] > best.dimensions[dim as keyof typeof best.dimensions]) {
+      const curScore = r.dimensions?.[dim as keyof typeof r.dimensions] ?? 0;
+      const bestScore = best?.dimensions?.[dim as keyof typeof best.dimensions] ?? 0;
+      if (curScore > bestScore) {
         best = r;
       }
     });
-    dimensionWinners[dim] = best.name;
+    if (best) dimensionWinners[dim] = best.name;
   });
 
   return (
@@ -191,7 +193,7 @@ export default function CompetitorBenchmark({ data, selectedRestaurantName = "Th
                     </div>
                   </td>
                   {(["foodQuality", "service", "hygiene", "value", "ambiance"] as const).map((dim) => {
-                    const score = restaurant.dimensions[dim];
+                    const score = restaurant.dimensions?.[dim] ?? 0;
                     const isWinner = dimensionWinners[dim] === restaurant.name;
                     return (
                       <td key={dim} className="text-center px-3 py-3">

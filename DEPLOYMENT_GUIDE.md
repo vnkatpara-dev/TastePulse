@@ -41,8 +41,10 @@ We will host the React frontend as a **Render Static Site**.
    - **Publish Directory**: `dist`
 4. Click **Advanced** to add Environment Variables:
    - **`VITE_API_URL`**: Paste the URL of your deployed backend (e.g., `https://tastepulse-api.onrender.com/api` - make sure to append `/api` at the end).
-5. Click **Create Static Site**.
-6. Once deployed, click the provided site link to open your live application!
+   - **`VITE_GEMINI_API_KEY`**: Paste your Google Gemini API key to enable the AI Operations suite in production.
+5. **SPA Rewrites**: The repository includes `public/_redirects` which instructs Render to rewrite all routes (`/* -> /index.html`) automatically, preventing 404 Not Found errors when reloading or navigating subpages.
+6. Click **Create Static Site**.
+7. Once deployed, click the provided site link to open your live application!
 
 ---
 

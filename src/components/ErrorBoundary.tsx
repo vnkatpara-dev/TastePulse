@@ -26,6 +26,16 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   public handleReset = () => {
+    try {
+      localStorage.removeItem("tastepulse_restaurants_store");
+      localStorage.removeItem("tastepulse_reviews_store");
+      sessionStorage.clear();
+    } catch {}
+    this.setState({ hasError: false, error: null });
+    window.location.href = "/";
+  };
+
+  public handleReload = () => {
     this.setState({ hasError: false, error: null });
     window.location.href = "/";
   };
@@ -38,18 +48,23 @@ class ErrorBoundary extends Component<Props, State> {
             <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto">
               <AlertTriangle className="w-7 h-7" />
             </div>
-            <h2 className="font-display text-2xl font-bold text-foreground">Something went wrong</h2>
+            <h2 className="font-display text-2xl font-bold text-foreground">Session Needs Refresh</h2>
             <p className="text-sm text-muted-foreground font-body">
-              An unexpected error occurred. Please reload to restore the session.
+              An unexpected state transition occurred. Click below to restore your TastePulse session.
             </p>
             {this.state.error && (
               <p className="text-xs font-mono p-3 rounded-lg bg-card border text-destructive/80 text-left overflow-x-auto">
                 {this.state.error.message}
               </p>
             )}
-            <Button onClick={this.handleReset} className="w-full gradient-amber text-primary-foreground font-body font-semibold">
-              <RotateCcw className="w-4 h-4 mr-2" /> Reload TastePulse
-            </Button>
+            <div className="space-y-2 pt-2">
+              <Button onClick={this.handleReload} className="w-full gradient-amber text-primary-foreground font-body font-semibold">
+                <RotateCcw className="w-4 h-4 mr-2" /> Return to Home
+              </Button>
+              <Button onClick={this.handleReset} variant="outline" className="w-full text-xs font-body text-muted-foreground hover:text-foreground">
+                Reset Demo Data & Restore Defaults
+              </Button>
+            </div>
           </div>
         </div>
       );

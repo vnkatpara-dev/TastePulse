@@ -371,14 +371,27 @@ export const getStoredRestaurants = (): Restaurant[] => {
   try {
     const raw = localStorage.getItem("tastepulse_restaurants_store");
     let restaurants: Restaurant[] = raw ? JSON.parse(raw) : INITIAL_SEED_RESTAURANTS;
-    if (!raw) {
+    if (!raw || !Array.isArray(restaurants) || restaurants.length === 0) {
+      restaurants = INITIAL_SEED_RESTAURANTS;
       localStorage.setItem("tastepulse_restaurants_store", JSON.stringify(INITIAL_SEED_RESTAURANTS));
     }
+
+    // Deduplicate by restaurant name so duplicate entries never appear
+    const seenNames = new Set<string>();
+    restaurants = restaurants.filter(r => {
+      const normalized = (r.name || "").trim().toLowerCase();
+      if (!normalized || seenNames.has(normalized)) return false;
+      seenNames.add(normalized);
+      return true;
+    });
 
     // Always recalculate sentiment summary from the latest stored reviews
     const allReviews = getStoredReviews();
     restaurants = restaurants.map(r => {
-      const matchingReviews = allReviews.filter(rev => rev.restaurantName === r.name || (r.id && rev.restaurantId === r.id));
+      const matchingReviews = allReviews.filter(rev => 
+        (r.name && rev.restaurantName?.toLowerCase() === r.name.toLowerCase()) || 
+        (r.id && rev.restaurantId === r.id)
+      );
       const total = matchingReviews.length;
       if (total > 0) {
         const pos = matchingReviews.filter(rev => rev.sentiment === 'positive').length;
@@ -633,6 +646,7 @@ export const addReview = async (review: {
 
 // Get all restaurants
 export const getRestaurants = async (myRestaurants = false): Promise<Restaurant[]> => {
+  let backendRestaurants: Restaurant[] = [];
   try {
     const headers = await getAuthHeaders();
     const url = `${API_BASE_URL}/restaurants${myRestaurants ? '?myRestaurants=true' : ''}`;
@@ -641,14 +655,25 @@ export const getRestaurants = async (myRestaurants = false): Promise<Restaurant[
     if (response.ok) {
       const data = await response.json();
       if (Array.isArray(data) && data.length > 0) {
-        return data;
+        backendRestaurants = data;
       }
     }
   } catch {
     // Fallback to local store
   }
 
-  return getStoredRestaurants();
+  const stored = getStoredRestaurants();
+  // Merge and deduplicate by normalized name so duplicate restaurants never appear
+  const combined = [...backendRestaurants, ...stored];
+  const seenNames = new Set<string>();
+  const results = combined.filter(r => {
+    const key = (r.name || "").trim().toLowerCase();
+    if (!key || seenNames.has(key)) return false;
+    seenNames.add(key);
+    return true;
+  });
+
+  return results.length > 0 ? results : stored;
 };
 
 // Get analytics
@@ -801,8 +826,26 @@ export const addRestaurant = async (restaurant: { name: string; cuisine: string 
 
 // Delete a restaurant (requires owner authentication)
 export const deleteRestaurant = async (restaurantId: string): Promise<void> => {
-  const stored = getStoredRestaurants().filter(r => r.id !== restaurantId);
+  const current = getStoredRestaurants();
+  const target = current.find(r => r.id === restaurantId);
+  const targetName = target?.name?.trim().toLowerCase();
+
+  let stored = current.filter(r => r.id !== restaurantId && (!targetName || r.name?.trim().toLowerCase() !== targetName));
+  // If user deleted all restaurants, keep the other seed restaurants alive
+  if (stored.length === 0) {
+    stored = INITIAL_SEED_RESTAURANTS.filter(r => r.id !== restaurantId && (!targetName || r.name?.trim().toLowerCase() !== targetName));
+  }
   saveStoredRestaurants(stored);
+
+  // If a restaurant was deleted, also clean up associated reviews safely
+  if (targetName) {
+    const currentReviews = getStoredReviews();
+    const remaining = currentReviews.filter(r => 
+      r.restaurantId !== restaurantId && 
+      (r.restaurantName || "").trim().toLowerCase() !== targetName
+    );
+    saveStoredReviews(remaining.length > 0 ? remaining : INITIAL_SEED_REVIEWS);
+  }
 
   try {
     const headers = await getAuthHeaders();
