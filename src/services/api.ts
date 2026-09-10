@@ -337,30 +337,60 @@ const INITIAL_SEED_REVIEWS: Review[] = [
   { id: "seed-180", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Audra R.", rating: 5, text: "Uni from Hokkaido was incredibly fresh, creamy, and sweet. World-class Japanese dining.", sentiment: "positive", sentimentScore: 0.99, date: "2025-09-11", category: "Food Quality" }
 ];
 
+export const getDynamicReviewDate = (daysAgo: number): string => {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return d.toISOString().split("T")[0];
+};
+
+/**
+ * Returns seed reviews distributed relative to current date so that:
+ * - Days 0 (Today) has reviews
+ * - Days 1..7 (Last 7 Days) has reviews
+ * - Days 8..30 (Last 30 Days) has reviews
+ * - Days 31..90 has reviews
+ */
+export const getDynamicSeedReviews = (): Review[] => {
+  return INITIAL_SEED_REVIEWS.map((rev, idx) => {
+    // 180 reviews spread across 0 to 44 days ago
+    const daysAgo = idx % 45;
+    const dynamicDate = getDynamicReviewDate(daysAgo);
+    return {
+      ...rev,
+      date: dynamicDate,
+      ownerReplyDate: rev.ownerReply ? dynamicDate : undefined,
+    };
+  });
+};
+
 export const getStoredReviews = (): Review[] => {
   try {
-    const raw = localStorage.getItem("tastepulse_reviews_store");
+    const raw = localStorage.getItem("tastepulse_reviews_store_v4");
     if (!raw) {
-      localStorage.setItem("tastepulse_reviews_store", JSON.stringify(INITIAL_SEED_REVIEWS));
-      return INITIAL_SEED_REVIEWS;
+      const dynamicSeeds = getDynamicSeedReviews();
+      localStorage.setItem("tastepulse_reviews_store_v4", JSON.stringify(dynamicSeeds));
+      localStorage.removeItem("tastepulse_reviews_store");
+      localStorage.removeItem("tastepulse_reviews_store_v2");
+      localStorage.removeItem("tastepulse_reviews_store_v3");
+      return dynamicSeeds;
     }
     const parsed: Review[] = JSON.parse(raw);
-    const existingIds = new Set(parsed.map(r => r.id));
-    const missingSeeds = INITIAL_SEED_REVIEWS.filter(s => !existingIds.has(s.id));
-    if (missingSeeds.length > 0) {
-      const merged = [...parsed, ...missingSeeds];
-      localStorage.setItem("tastepulse_reviews_store", JSON.stringify(merged));
-      return merged;
+    const todayStr = new Date().toISOString().split("T")[0];
+    const hasCurrentReview = parsed.some((r) => r.date === todayStr);
+    if (!hasCurrentReview) {
+      const refreshed = getDynamicSeedReviews();
+      localStorage.setItem("tastepulse_reviews_store_v4", JSON.stringify(refreshed));
+      return refreshed;
     }
     return parsed;
   } catch {
-    return INITIAL_SEED_REVIEWS;
+    return getDynamicSeedReviews();
   }
 };
 
 export const saveStoredReviews = (reviews: Review[]) => {
   try {
-    localStorage.setItem("tastepulse_reviews_store", JSON.stringify(reviews));
+    localStorage.setItem("tastepulse_reviews_store_v4", JSON.stringify(reviews));
     window.dispatchEvent(new CustomEvent('tastepulse_review_store_updated', { detail: reviews }));
   } catch (err) {
     console.error("Failed to save reviews store to localStorage:", err);

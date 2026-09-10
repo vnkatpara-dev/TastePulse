@@ -85,8 +85,14 @@ const OwnerDashboard = () => {
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [reportTimeframe, setReportTimeframe] = useState<"today" | "lastNDays" | "custom">("today");
   const [lastNDays, setLastNDays] = useState(7);
-  const [customStartDate, setCustomStartDate] = useState("");
-  const [customEndDate, setCustomEndDate] = useState("");
+  const [customStartDate, setCustomStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().split("T")[0];
+  });
+  const [customEndDate, setCustomEndDate] = useState(() => {
+    return new Date().toISOString().split("T")[0];
+  });
   
   // Selected restaurant state
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
@@ -514,46 +520,34 @@ const OwnerDashboard = () => {
     try {
       toast.info("Synthesizing Executive PDF report...");
 
-      // 1. Timeframe filtering
+      // 1. Strict timeframe filtering
       const todayStr = new Date().toISOString().split("T")[0];
       let timeframeLabel = "All-Time Overview";
-      let timeframeReviews = [...filteredReviews];
+      let timeframeReviews: Review[] = [];
 
       if (reportTimeframe === "today") {
-        timeframeLabel = `Today (${todayStr})`;
-        const matched = filteredReviews.filter((r) => r.date === todayStr);
-        if (matched.length > 0) {
-          timeframeReviews = matched;
-        } else {
-          timeframeLabel = `Today (${todayStr}) - Active Shift Focus`;
-          timeframeReviews = filteredReviews.slice(0, 15);
-        }
+        timeframeLabel = `Current Day Report (${todayStr})`;
+        timeframeReviews = filteredReviews.filter((r) => r.date === todayStr);
       } else if (reportTimeframe === "lastNDays") {
-        timeframeLabel = `Last ${lastNDays} Days`;
-        const cutoff = new Date(Date.now() - lastNDays * 24 * 60 * 60 * 1000);
-        const matched = filteredReviews.filter((r) => new Date(r.date) >= cutoff);
-        if (matched.length > 0) timeframeReviews = matched;
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - (lastNDays - 1));
+        const cutoffStr = cutoff.toISOString().split("T")[0];
+        timeframeLabel = `Last ${lastNDays} Days (${cutoffStr} to ${todayStr})`;
+        timeframeReviews = filteredReviews.filter((r) => r.date >= cutoffStr && r.date <= todayStr);
       } else if (reportTimeframe === "custom") {
-        const startStr = customStartDate || "2024-01-01";
+        const startStr = customStartDate || todayStr;
         const endStr = customEndDate || todayStr;
-        timeframeLabel = `Custom Range: ${startStr} to ${endStr}`;
-        const start = new Date(startStr);
-        const end = new Date(endStr);
-        end.setHours(23, 59, 59, 999);
-        const matched = filteredReviews.filter((r) => {
-          const d = new Date(r.date);
-          return d >= start && d <= end;
-        });
-        if (matched.length > 0) timeframeReviews = matched;
+        timeframeLabel = `Custom Range (${startStr} to ${endStr})`;
+        timeframeReviews = filteredReviews.filter((r) => r.date >= startStr && r.date <= endStr);
       }
 
-      // 2. Metrics calculation for selected timeframe
+      // 2. Metrics calculation strictly for selected timeframe
       const totalRev = timeframeReviews.length;
       const posCount = timeframeReviews.filter((r) => r.sentiment === "positive").length;
       const negCount = timeframeReviews.filter((r) => r.sentiment === "negative").length;
       const avgRating = totalRev > 0
         ? (timeframeReviews.reduce((sum, r) => sum + r.rating, 0) / totalRev).toFixed(1)
-        : "0.0";
+        : "N/A";
       const posPercent = totalRev > 0 ? Math.round((posCount / totalRev) * 100) : 0;
       const negPercent = totalRev > 0 ? Math.round((negCount / totalRev) * 100) : 0;
 
@@ -597,18 +591,18 @@ const OwnerDashboard = () => {
 
       pdf.setFillColor(254, 243, 199);
       pdf.setDrawColor(245, 158, 11);
-      pdf.roundedRect(pageWidth - 85, y + 5, 68, 14, 2, 2, "FD");
+      pdf.roundedRect(pageWidth - 95, y + 5, 78, 14, 2, 2, "FD");
       pdf.setTextColor(180, 83, 9);
-      pdf.setFontSize(8);
+      pdf.setFontSize(7.5);
       pdf.setFont("helvetica", "bold");
-      pdf.text(timeframeLabel, pageWidth - 51, y + 13.5, { align: "center" });
+      pdf.text(timeframeLabel, pageWidth - 56, y + 13.5, { align: "center" });
 
       // 4 KPI Stat Cards
       y += 30;
       const cardWidth = (pageWidth - 28 - 9) / 4;
       const statCards = [
-        { label: "TOTAL FEEDBACK", value: totalRev.toString(), sub: "In selected window", color: [30, 41, 59] },
-        { label: "AVG. GUEST RATING", value: `${avgRating} / 5.0`, sub: "Across all aspects", color: [217, 119, 6] },
+        { label: "TOTAL FEEDBACK", value: totalRev.toString(), sub: `${totalRev} in timeframe`, color: [30, 41, 59] },
+        { label: "AVG. GUEST RATING", value: avgRating === "N/A" ? "N/A" : `${avgRating} / 5.0`, sub: "Across all aspects", color: [217, 119, 6] },
         { label: "POSITIVE RATIO", value: `${posPercent}%`, sub: `${posCount} positive reviews`, color: [16, 185, 129] },
         { label: "NEGATIVE ATTRITION", value: `${negPercent}%`, sub: `${negCount} critical reviews`, color: [239, 68, 68] },
       ];
@@ -722,33 +716,43 @@ const OwnerDashboard = () => {
       pdf.text(`VERIFIED GUEST FEEDBACK LOG (${timeframeLabel})`, 14, 12);
 
       let logY = 26;
-      const recentLog = timeframeReviews.slice(0, 9);
-      recentLog.forEach((rev, idx) => {
-        pdf.setFillColor(idx % 2 === 0 ? 255 : 248, idx % 2 === 0 ? 255 : 250, idx % 2 === 0 ? 255 : 252);
+      if (timeframeReviews.length === 0) {
+        pdf.setFillColor(248, 250, 252);
         pdf.setDrawColor(226, 232, 240);
-        pdf.roundedRect(14, logY, pageWidth - 28, 24, 1.5, 1.5, "FD");
-
+        pdf.roundedRect(14, logY, pageWidth - 28, 22, 1.5, 1.5, "FD");
         pdf.setFontSize(8.5);
-        pdf.setFont("helvetica", "bold");
-        pdf.setTextColor(15, 23, 42);
-        pdf.text(rev.customerName, 18, logY + 6);
-
-        pdf.setFontSize(8);
-        pdf.setTextColor(217, 119, 6);
-        pdf.text(`${"★".repeat(rev.rating)}${"☆".repeat(5 - rev.rating)} (${rev.rating}/5)`, 70, logY + 6);
-
-        pdf.setFontSize(7.5);
         pdf.setTextColor(100, 116, 139);
-        pdf.text(`${rev.date} · ${rev.category} · ${rev.sentiment.toUpperCase()}`, pageWidth - 18, logY + 6, { align: "right" });
-
-        pdf.setFontSize(7.5);
         pdf.setFont("helvetica", "normal");
-        pdf.setTextColor(51, 65, 85);
-        const textLines = pdf.splitTextToSize(`"${rev.text}"`, pageWidth - 36);
-        pdf.text(textLines.slice(0, 2), 18, logY + 13);
+        pdf.text(`No customer reviews recorded during this specific date window (${timeframeLabel}).`, 18, logY + 12);
+      } else {
+        const recentLog = timeframeReviews.slice(0, 9);
+        recentLog.forEach((rev, idx) => {
+          pdf.setFillColor(idx % 2 === 0 ? 255 : 248, idx % 2 === 0 ? 255 : 250, idx % 2 === 0 ? 255 : 252);
+          pdf.setDrawColor(226, 232, 240);
+          pdf.roundedRect(14, logY, pageWidth - 28, 24, 1.5, 1.5, "FD");
 
-        logY += 27;
-      });
+          pdf.setFontSize(8.5);
+          pdf.setFont("helvetica", "bold");
+          pdf.setTextColor(15, 23, 42);
+          pdf.text(rev.customerName, 18, logY + 6);
+
+          pdf.setFontSize(8);
+          pdf.setTextColor(217, 119, 6);
+          pdf.text(`${"★".repeat(rev.rating)}${"☆".repeat(5 - rev.rating)} (${rev.rating}/5)`, 70, logY + 6);
+
+          pdf.setFontSize(7.5);
+          pdf.setTextColor(100, 116, 139);
+          pdf.text(`${rev.date} · ${rev.category} · ${rev.sentiment.toUpperCase()}`, pageWidth - 18, logY + 6, { align: "right" });
+
+          pdf.setFontSize(7.5);
+          pdf.setFont("helvetica", "normal");
+          pdf.setTextColor(51, 65, 85);
+          const textLines = pdf.splitTextToSize(`"${rev.text}"`, pageWidth - 36);
+          pdf.text(textLines.slice(0, 2), 18, logY + 13);
+
+          logY += 27;
+        });
+      }
 
       // Global Footer on Page 2
       pdf.setFontSize(7.5);
@@ -1515,76 +1519,126 @@ const OwnerDashboard = () => {
             <DialogTitle className="font-display">Select Report Timeframe</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label className="font-body">Choose Time Period</Label>
-              <div className="grid gap-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="timeframe"
-                    checked={reportTimeframe === "today"}
-                    onChange={() => setReportTimeframe("today")}
-                    className="w-4 h-4"
-                  />
-                  <span className="font-body">Current Day Report</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="timeframe"
-                    checked={reportTimeframe === "lastNDays"}
-                    onChange={() => setReportTimeframe("lastNDays")}
-                    className="w-4 h-4"
-                  />
-                  <span className="font-body">Last N Days Report</span>
-                </label>
-                {reportTimeframe === "lastNDays" && (
-                  <div className="ml-6 mt-2">
-                    <Input
-                      type="number"
-                      min={1}
-                      max={365}
-                      value={lastNDays}
-                      onChange={(e) => setLastNDays(parseInt(e.target.value) || 7)}
-                      placeholder="Enter number of days"
-                      className="w-48"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1 font-body">Enter the number of days (e.g., 7, 30, 90)</p>
+            <div className="space-y-3">
+              <Label className="font-body text-xs text-muted-foreground uppercase font-semibold">Choose Time Period</Label>
+              {(() => {
+                const todayStr = new Date().toISOString().split("T")[0];
+                const todayCount = filteredReviews.filter((r) => r.date === todayStr).length;
+
+                const cutoff = new Date();
+                cutoff.setDate(cutoff.getDate() - (lastNDays - 1));
+                const cutoffStr = cutoff.toISOString().split("T")[0];
+                const lastNCount = filteredReviews.filter((r) => r.date >= cutoffStr && r.date <= todayStr).length;
+
+                const startStr = customStartDate || todayStr;
+                const endStr = customEndDate || todayStr;
+                const customCount = filteredReviews.filter((r) => r.date >= startStr && r.date <= endStr).length;
+
+                return (
+                  <div className="grid gap-2.5">
+                    <label className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
+                      reportTimeframe === "today" ? "border-amber-500/50 bg-amber-50/40 dark:bg-amber-950/20 shadow-xs" : "border-border/70 hover:bg-muted/30"
+                    }`}>
+                      <div className="flex items-center gap-2.5">
+                        <input
+                          type="radio"
+                          name="timeframe"
+                          checked={reportTimeframe === "today"}
+                          onChange={() => setReportTimeframe("today")}
+                          className="w-4 h-4 accent-amber-600"
+                        />
+                        <div>
+                          <span className="font-body text-xs font-semibold block text-foreground">Current Day Report</span>
+                          <span className="text-xxs text-muted-foreground font-mono">{todayStr}</span>
+                        </div>
+                      </div>
+                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 font-bold font-mono">
+                        {todayCount} {todayCount === 1 ? "review" : "reviews"}
+                      </span>
+                    </label>
+
+                    <label className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
+                      reportTimeframe === "lastNDays" ? "border-blue-500/50 bg-blue-50/40 dark:bg-blue-950/20 shadow-xs" : "border-border/70 hover:bg-muted/30"
+                    }`}>
+                      <div className="flex items-center gap-2.5">
+                        <input
+                          type="radio"
+                          name="timeframe"
+                          checked={reportTimeframe === "lastNDays"}
+                          onChange={() => setReportTimeframe("lastNDays")}
+                          className="w-4 h-4 accent-blue-600"
+                        />
+                        <div>
+                          <span className="font-body text-xs font-semibold block text-foreground">Last N Days Report</span>
+                          <span className="text-xxs text-muted-foreground font-mono">{cutoffStr} to {todayStr}</span>
+                        </div>
+                      </div>
+                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-500/15 text-blue-700 dark:text-blue-300 font-bold font-mono">
+                        {lastNCount} {lastNCount === 1 ? "review" : "reviews"}
+                      </span>
+                    </label>
+
+                    {reportTimeframe === "lastNDays" && (
+                      <div className="ml-4 p-3 rounded-lg bg-muted/40 border border-border/50 space-y-1.5 animate-in fade-in-50">
+                        <Label className="text-xxs font-semibold text-muted-foreground uppercase">Number of Past Days</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={365}
+                          value={lastNDays}
+                          onChange={(e) => setLastNDays(parseInt(e.target.value) || 7)}
+                          placeholder="7"
+                          className="w-full sm:w-48 h-8 text-xs font-mono"
+                        />
+                      </div>
+                    )}
+
+                    <label className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
+                      reportTimeframe === "custom" ? "border-emerald-500/50 bg-emerald-50/40 dark:bg-emerald-950/20 shadow-xs" : "border-border/70 hover:bg-muted/30"
+                    }`}>
+                      <div className="flex items-center gap-2.5">
+                        <input
+                          type="radio"
+                          name="timeframe"
+                          checked={reportTimeframe === "custom"}
+                          onChange={() => setReportTimeframe("custom")}
+                          className="w-4 h-4 accent-emerald-600"
+                        />
+                        <div>
+                          <span className="font-body text-xs font-semibold block text-foreground">Custom Date Range</span>
+                          <span className="text-xxs text-muted-foreground font-mono">{startStr} to {endStr}</span>
+                        </div>
+                      </div>
+                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold font-mono">
+                        {customCount} {customCount === 1 ? "review" : "reviews"}
+                      </span>
+                    </label>
+
+                    {reportTimeframe === "custom" && (
+                      <div className="ml-4 p-3 rounded-lg bg-muted/40 border border-border/50 grid grid-cols-2 gap-2.5 animate-in fade-in-50">
+                        <div>
+                          <Label className="text-xxs font-semibold text-muted-foreground uppercase">Start Date</Label>
+                          <Input
+                            type="date"
+                            value={customStartDate}
+                            onChange={(e) => setCustomStartDate(e.target.value)}
+                            className="mt-1 h-8 text-xs font-mono"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xxs font-semibold text-muted-foreground uppercase">End Date</Label>
+                          <Input
+                            type="date"
+                            value={customEndDate}
+                            onChange={(e) => setCustomEndDate(e.target.value)}
+                            className="mt-1 h-8 text-xs font-mono"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-                <label className="flex items-center gap-2 cursor-pointer mt-2">
-                  <input
-                    type="radio"
-                    name="timeframe"
-                    checked={reportTimeframe === "custom"}
-                    onChange={() => setReportTimeframe("custom")}
-                    className="w-4 h-4"
-                  />
-                  <span className="font-body">Custom Date Range Report</span>
-                </label>
-                {reportTimeframe === "custom" && (
-                  <div className="ml-6 mt-2 space-y-2">
-                    <div>
-                      <Label className="text-sm font-body">Start Date</Label>
-                      <Input
-                        type="date"
-                        value={customStartDate}
-                        onChange={(e) => setCustomStartDate(e.target.value)}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-body">End Date</Label>
-                      <Input
-                        type="date"
-                        value={customEndDate}
-                        onChange={(e) => setCustomEndDate(e.target.value)}
-                        className="mt-1"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
+                );
+              })()}
             </div>
           </div>
           <DialogFooter>

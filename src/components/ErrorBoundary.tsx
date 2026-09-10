@@ -29,6 +29,7 @@ class ErrorBoundary extends Component<Props, State> {
     try {
       localStorage.removeItem("tastepulse_restaurants_store");
       localStorage.removeItem("tastepulse_reviews_store");
+      localStorage.removeItem("tastepulse_reviews_store_v4");
       sessionStorage.clear();
     } catch {}
     this.setState({ hasError: false, error: null });
