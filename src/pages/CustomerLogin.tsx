@@ -24,7 +24,7 @@ const CustomerLogin = () => {
       await loginAsDemo("customer");
       toast.success("Signed in as Demo Customer!");
       navigate("/customer/dashboard");
-    } catch (err: any) {
+    } catch (err) {
       console.error("Demo login error:", err);
       navigate("/customer/dashboard");
     } finally {
@@ -40,8 +40,8 @@ const CustomerLogin = () => {
     try {
       await signIn(email, password, "customer");
       navigate("/customer/dashboard");
-    } catch (err: any) {
-      setError(err.message || "Failed to sign in");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to sign in");
     } finally {
       setLoading(false);
     }
@@ -56,8 +56,8 @@ const CustomerLogin = () => {
     try {
       await signUp(email, password, "customer");
       navigate("/customer/dashboard");
-    } catch (err: any) {
-      setError(err.message || "Failed to sign up");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to sign up");
     } finally {
       setLoading(false);
     }
@@ -69,11 +69,12 @@ const CustomerLogin = () => {
     try {
       await signInWithGoogle("customer");
       navigate("/customer/dashboard");
-    } catch (err: any) {
-      if (err.code === "auth/operation-not-allowed") {
+    } catch (err: unknown) {
+      const errorObj = err as { code?: string; message?: string };
+      if (errorObj?.code === "auth/operation-not-allowed") {
         setError("Google authentication is not yet enabled in Firebase Console. Please verify with the project owner or enable it in the Sign-in method tab.");
       } else {
-        setError(err.message || "Failed to sign in with Google");
+        setError(errorObj?.message || "Failed to sign in with Google");
       }
     } finally {
       setLoading(false);

@@ -1,18 +1,21 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from "recharts";
-import { MessageSquare, TrendingUp, ThumbsUp, ThumbsDown, LogOut, Star, Loader2, Plus, Pencil, Trash2, X, Download, Lightbulb, ChefHat, AlertTriangle, CheckCircle, Users, BarChart2, Trophy, Sparkles, ArrowRight } from "lucide-react";
+import { MessageSquare, TrendingUp, ThumbsUp, ThumbsDown, LogOut, Star, Loader2, Plus, Pencil, Trash2, X, Download, Lightbulb, ChefHat, AlertTriangle, CheckCircle, Users, BarChart2, Trophy, Sparkles, ArrowRight, ShieldAlert, Bot, MessageCircleReply, CornerDownLeft, Copy, Check, Send, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import StatCard from "@/components/StatCard";
 import SentimentBadge from "@/components/SentimentBadge";
 import StarRating from "@/components/StarRating";
 import ChurnWarningPanel from "@/components/ChurnWarningPanel";
 import MenuLifecycleChart from "@/components/MenuLifecycleChart";
 import CompetitorBenchmark from "@/components/CompetitorBenchmark";
-import { getAnalytics, getReviews, getSentimentTrend, getCategoryBreakdown, getRestaurants, addRestaurant, deleteRestaurant, updateRestaurant, deleteReview, getDishInsights, getChurnRisks, getMenuLifecycle, getCompetitorBenchmark, Review, Analytics, SentimentTrend, CategoryBreakdown, Restaurant, DishInsight, ChurnRisk, MenuLifecycleItem, CompetitorBenchmarkItem } from "@/services/api";
+import { getAnalytics, getReviews, getSentimentTrend, getCategoryBreakdown, getRestaurants, addRestaurant, deleteRestaurant, updateRestaurant, deleteReview, getDishInsights, getChurnRisks, getMenuLifecycle, getCompetitorBenchmark, addReplyToReview, Review, Analytics, SentimentTrend, CategoryBreakdown, Restaurant, DishInsight, ChurnRisk, MenuLifecycleItem, CompetitorBenchmarkItem } from "@/services/api";
+import { askChefCopilot, auditHealthSafetyRisks, generateSmartReply, ChefCopilotAnswer, HealthSafetyAudit } from "@/services/geminiService";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
@@ -100,6 +103,26 @@ const OwnerDashboard = () => {
   const [isLifecycleLoading, setIsLifecycleLoading] = useState(false);
   const [competitorBenchmark, setCompetitorBenchmark] = useState<CompetitorBenchmarkItem[]>([]);
   const [isBenchmarkLoading, setIsBenchmarkLoading] = useState(false);
+
+  // Gemini AI Operations states
+  const [copilotInput, setCopilotInput] = useState("");
+  const [copilotAnswer, setCopilotAnswer] = useState<ChefCopilotAnswer | null>(null);
+  const [isCopilotLoading, setIsCopilotLoading] = useState(false);
+
+  const [isHealthAuditOpen, setIsHealthAuditOpen] = useState(false);
+  const [healthAudit, setHealthAudit] = useState<HealthSafetyAudit | null>(null);
+  const [isHealthAuditLoading, setIsHealthAuditLoading] = useState(false);
+
+  const [replyingReview, setReplyingReview] = useState<Review | null>(null);
+  const [replyDraft, setReplyDraft] = useState("");
+  const [replyTone, setReplyTone] = useState<"warm" | "professional" | "concise">("warm");
+  const [isGeneratingReply, setIsGeneratingReply] = useState(false);
+  const [isSavingReply, setIsSavingReply] = useState(false);
+
+  // Reviews stream filtering & pagination
+  const [reviewSearch, setReviewSearch] = useState("");
+  const [reviewSentimentFilter, setReviewSentimentFilter] = useState<"all" | "positive" | "negative" | "neutral">("all");
+  const [visibleReviewCount, setVisibleReviewCount] = useState(10);
 
   const fetchInsights = async () => {
     try {
@@ -250,6 +273,19 @@ const OwnerDashboard = () => {
       }))
     : categoryBreakdown;
 
+  // Search & sentiment filtered reviews
+  const searchedReviews = filteredReviews.filter(r => {
+    const matchesSentiment = reviewSentimentFilter === "all" || r.sentiment === reviewSentimentFilter;
+    const searchLower = reviewSearch.trim().toLowerCase();
+    const matchesSearch = !searchLower || 
+      (r.customerName || "").toLowerCase().includes(searchLower) ||
+      (r.text || "").toLowerCase().includes(searchLower) ||
+      (r.category || "").toLowerCase().includes(searchLower) ||
+      (r.restaurantName || "").toLowerCase().includes(searchLower);
+    return matchesSentiment && matchesSearch;
+  });
+  const displayedReviews = searchedReviews.slice(0, visibleReviewCount);
+
   const handleAddRestaurant = () => {
     setEditingRestaurant(null);
     setRestaurantName("");
@@ -305,6 +341,9 @@ const OwnerDashboard = () => {
   };
 
   const handleSelectRestaurant = (restaurant: Restaurant) => {
+    setVisibleReviewCount(10);
+    setReviewSearch("");
+    setReviewSentimentFilter("all");
     if (selectedRestaurant?.id === restaurant.id) {
       // Deselect if clicking on already selected
       setSelectedRestaurant(null);
@@ -351,6 +390,110 @@ const OwnerDashboard = () => {
       toast.error("Failed to save restaurant. Please try again.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // ─── GEMINI AI OPERATIONS HANDLERS ────────────────────────────────────────
+
+  const handleAskCopilot = async (overrideQuery?: string) => {
+    const q = (overrideQuery || copilotInput).trim();
+    if (!q) {
+      toast.error("Please enter a question for the Chef Copilot");
+      return;
+    }
+    if (overrideQuery) setCopilotInput(overrideQuery);
+    setIsCopilotLoading(true);
+    setCopilotAnswer(null);
+    try {
+      const ans = await askChefCopilot(
+        q,
+        filteredReviews,
+        selectedRestaurant?.name || "The Golden Fork"
+      );
+      setCopilotAnswer(ans);
+    } catch (err) {
+      console.error("Chef Copilot failed:", err);
+      toast.error("Failed to get answer from Chef Copilot. Please retry.");
+    } finally {
+      setIsCopilotLoading(false);
+    }
+  };
+
+  const handleOpenHealthAudit = async () => {
+    setIsHealthAuditOpen(true);
+    if (healthAudit) return; // already loaded once
+    setIsHealthAuditLoading(true);
+    try {
+      const res = await auditHealthSafetyRisks(
+        filteredReviews,
+        selectedRestaurant?.name || "The Golden Fork"
+      );
+      setHealthAudit(res);
+    } catch (err) {
+      console.error("Health safety audit failed:", err);
+      toast.error("Failed to run health pre-audit.");
+    } finally {
+      setIsHealthAuditLoading(false);
+    }
+  };
+
+  const handleStartReply = async (review: Review) => {
+    setReplyingReview(review);
+    setReplyDraft(review.ownerReply || "");
+    setReplyTone("warm");
+    if (!review.ownerReply) {
+      setIsGeneratingReply(true);
+      try {
+        const text = await generateSmartReply(
+          review,
+          selectedRestaurant?.name || "The Golden Fork",
+          "warm"
+        );
+        setReplyDraft(text);
+      } catch (err) {
+        console.error("Failed to generate draft reply:", err);
+      } finally {
+        setIsGeneratingReply(false);
+      }
+    }
+  };
+
+  const handleRegenerateReplyWithTone = async (tone: "warm" | "professional" | "concise") => {
+    if (!replyingReview) return;
+    setReplyTone(tone);
+    setIsGeneratingReply(true);
+    try {
+      const text = await generateSmartReply(
+        replyingReview,
+        selectedRestaurant?.name || "The Golden Fork",
+        tone
+      );
+      setReplyDraft(text);
+    } catch (err) {
+      console.error("Regenerate reply failed:", err);
+    } finally {
+      setIsGeneratingReply(false);
+    }
+  };
+
+  const handleSaveReply = async () => {
+    if (!replyingReview || !replyDraft.trim()) {
+      toast.error("Please enter a reply message");
+      return;
+    }
+    setIsSavingReply(true);
+    try {
+      await addReplyToReview(replyingReview.id, replyDraft.trim());
+      toast.success("Owner reply posted successfully!");
+      // Update local reviews
+      const updated = await getReviews();
+      setReviews(updated);
+      setReplyingReview(null);
+    } catch (err) {
+      console.error("Failed to save reply:", err);
+      toast.error("Failed to save reply");
+    } finally {
+      setIsSavingReply(false);
     }
   };
 
@@ -583,6 +726,15 @@ const OwnerDashboard = () => {
             </p>
           </div>
           <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOpenHealthAudit}
+              className="font-body text-xs border-red-300 dark:border-red-900/50 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/20 gap-1.5"
+            >
+              <ShieldAlert className="w-4 h-4 text-red-500" />
+              <span className="hidden sm:inline">Health Pre-Audit</span>
+            </Button>
             {selectedRestaurant && (
               <>
                 <Button variant="outline" size="sm" onClick={() => setIsReportDialogOpen(true)} className="font-body hidden sm:flex">
@@ -632,6 +784,144 @@ const OwnerDashboard = () => {
               icon={<ThumbsDown className="w-5 h-5" />} 
               subtitle={`${filteredAnalytics?.negative || 0} reviews`} 
             />
+          </div>
+
+          {/* ── Chef Copilot ("Ask Your Restaurant Anything") ──────────── */}
+          <div className="glass-card rounded-xl p-4 sm:p-6 animate-fade-in border border-amber-500/20 bg-gradient-to-br from-amber-500/5 via-card to-background space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                  <Bot className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-display text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
+                    TastePulse Chef &amp; GM Copilot
+                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                      Gemini 3.6 Flash
+                    </span>
+                  </h3>
+                  <p className="text-xs text-muted-foreground font-body">
+                    Semantic Q&amp;A powered by real guest sentiment. Inquire about food quality, kitchen delays, staff, or trends.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Input bar */}
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Input
+                  value={copilotInput}
+                  onChange={(e) => setCopilotInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !isCopilotLoading) {
+                      handleAskCopilot();
+                    }
+                  }}
+                  placeholder="Ask your restaurant: e.g. Why did Friday dinner ratings drop? What do guests say about steak?"
+                  className="font-body text-xs sm:text-sm pl-9 pr-4 py-5 rounded-lg border-border/80 focus-visible:ring-amber-500"
+                />
+                <Sparkles className="w-4 h-4 text-amber-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              </div>
+              <Button
+                onClick={() => handleAskCopilot()}
+                disabled={isCopilotLoading}
+                className="gradient-amber text-white font-semibold text-xs sm:text-sm h-10 px-4 shrink-0 gap-1.5"
+              >
+                {isCopilotLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="hidden sm:inline">Analyzing...</span>
+                  </>
+                ) : (
+                  <>
+                    <CornerDownLeft className="w-4 h-4" />
+                    <span>Ask AI</span>
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {/* Quick Prompt Chips */}
+            <div className="flex items-center gap-2 flex-wrap text-xxs font-body">
+              <span className="text-muted-foreground font-semibold">Try asking:</span>
+              {[
+                "Why are diners leaving negative reviews?",
+                "What do guests say about pasta & steak quality?",
+                "How is weekend floor service speed performing?",
+                "What are the top compliments about ambiance?"
+              ].map((chip, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleAskCopilot(chip)}
+                  className="px-2.5 py-1 rounded-full bg-background border border-border/60 hover:border-amber-500/50 hover:bg-amber-500/5 text-muted-foreground hover:text-foreground transition-all"
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+
+            {/* Copilot Answer Card */}
+            {copilotAnswer && (
+              <div className="p-4 rounded-xl bg-card border border-amber-500/30 space-y-3 animate-fade-in">
+                <div className="flex items-start justify-between gap-2 border-b border-border/40 pb-2">
+                  <div>
+                    <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block">
+                      Executive Summary
+                    </span>
+                    <p className="text-xs sm:text-sm font-medium text-foreground leading-relaxed mt-0.5">
+                      {copilotAnswer.summary}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                  {/* Key Factors */}
+                  {copilotAnswer.keyFactors?.length > 0 && (
+                    <div className="p-3 rounded-lg bg-muted/40 border border-border/50 space-y-1.5">
+                      <span className="font-bold text-foreground text-[11px] block">Key Drivers Identified:</span>
+                      <ul className="space-y-1 text-muted-foreground">
+                        {copilotAnswer.keyFactors.map((fact, idx) => (
+                          <li key={idx} className="flex items-start gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 mt-1.5" />
+                            <span>{fact}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Supporting Quotes */}
+                  {copilotAnswer.supportingQuotes?.length > 0 && (
+                    <div className="p-3 rounded-lg bg-muted/40 border border-border/50 space-y-1.5">
+                      <span className="font-bold text-foreground text-[11px] block">Grounded Guest Quotes:</span>
+                      <ul className="space-y-1 text-muted-foreground italic">
+                        {copilotAnswer.supportingQuotes.map((quote, idx) => (
+                          <li key={idx} className="text-xxs leading-relaxed">
+                            &ldquo;{quote}&rdquo;
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                {/* Immediate Action */}
+                {copilotAnswer.suggestedImmediateAction && (
+                  <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-start gap-2">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300 uppercase block">
+                        Highest Impact Immediate Action
+                      </span>
+                      <p className="text-xs text-emerald-950 dark:text-emerald-200 mt-0.5">
+                        {copilotAnswer.suggestedImmediateAction}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Restaurants Management */}
@@ -876,7 +1166,7 @@ const OwnerDashboard = () => {
                 Customers statistically likely to never return — ranked by a composite risk score combining last rating, sentiment, recency, and loyalty history
               </p>
             </div>
-            <ChurnWarningPanel data={churnRisks} isLoading={isChurnLoading} />
+            <ChurnWarningPanel data={churnRisks} isLoading={isChurnLoading} restaurantName={selectedRestaurant?.name} />
           </div>
 
           {/* ── Menu Item Lifecycle Tracker ───────────────────────────── */}
@@ -890,7 +1180,7 @@ const OwnerDashboard = () => {
                 Week-over-week sentiment velocity per dish and aspect — not just where things stand, but which direction they&apos;re heading
               </p>
             </div>
-            <MenuLifecycleChart data={menuLifecycle} isLoading={isLifecycleLoading} />
+            <MenuLifecycleChart data={menuLifecycle} isLoading={isLifecycleLoading} reviews={filteredReviews} />
           </div>
 
           {/* ── Competitor Benchmarking ───────────────────────────────── */}
@@ -911,15 +1201,66 @@ const OwnerDashboard = () => {
             />
           </div>
 
-
-
           {/* Recent Reviews */}
-          <div className="glass-card rounded-xl p-6 animate-fade-in">
-            <h3 className="font-display text-lg font-semibold text-foreground mb-4">
-              {selectedRestaurant ? `${selectedRestaurant.name} - Recent Reviews` : "Recent Reviews"}
-            </h3>
+          <div className="glass-card rounded-xl p-4 sm:p-6 animate-fade-in">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+              <div>
+                <h3 className="font-display text-lg font-semibold text-foreground flex items-center gap-2">
+                  {selectedRestaurant ? `${selectedRestaurant.name} - Reviews` : "Live Customer Reviews"}
+                  <Badge variant="secondary" className="font-normal font-body text-xs">
+                    {filteredReviews.length} total reviews
+                  </Badge>
+                </h3>
+                <p className="text-xs text-muted-foreground font-body mt-0.5">
+                  Guest feedback stream with sentiment breakdown and AI instant response generator
+                </p>
+              </div>
+
+              {/* Quick Sentiment Filter Tabs */}
+              <div className="flex items-center gap-1 p-1 bg-background/80 border border-border/60 rounded-lg text-xs font-body">
+                {(["all", "positive", "neutral", "negative"] as const).map((s) => {
+                  const count = s === "all" 
+                    ? filteredReviews.length 
+                    : filteredReviews.filter(r => r.sentiment === s).length;
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => {
+                        setReviewSentimentFilter(s);
+                        setVisibleReviewCount(10);
+                      }}
+                      className={`px-2.5 py-1 rounded capitalize transition-all font-medium flex items-center gap-1.5 ${
+                        reviewSentimentFilter === s
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <span>{s}</span>
+                      <span className="text-[10px] opacity-80 px-1.5 py-0.2 rounded-full bg-foreground/10 font-bold">
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Keyword Search Bar */}
+            <div className="relative mb-4">
+              <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+              <Input
+                placeholder="Search vast reviews by dish, keywords, customer name..."
+                value={reviewSearch}
+                onChange={(e) => {
+                  setReviewSearch(e.target.value);
+                  setVisibleReviewCount(10);
+                }}
+                className="pl-9 text-xs h-9 bg-background/60"
+              />
+            </div>
+
             <div className="space-y-4">
-              {filteredReviews.map((review) => (
+              {displayedReviews.map((review) => (
                 <div key={review.id} className="flex items-start gap-4 p-4 rounded-lg bg-background/50 border border-border/50">
                   <div className="w-10 h-10 rounded-full gradient-amber flex items-center justify-center text-primary-foreground text-sm font-semibold font-body shrink-0">
                     {review.customerName.charAt(0)}
@@ -942,17 +1283,73 @@ const OwnerDashboard = () => {
                       <StarRating rating={review.rating} size={14} />
                     </div>
                     <p className="text-sm text-muted-foreground font-body mt-1 line-clamp-2">{review.text}</p>
+                    
+                    {/* Render existing owner reply if present */}
+                    {review.ownerReply && (
+                      <div className="mt-2.5 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs">
+                        <div className="flex items-center justify-between text-amber-800 dark:text-amber-300 font-bold mb-1 text-[11px]">
+                          <span className="flex items-center gap-1.5"><MessageCircleReply className="w-3.5 h-3.5" /> Owner Reply</span>
+                          <span className="text-[10px] text-muted-foreground font-normal">{review.ownerReplyDate}</span>
+                        </div>
+                        <p className="text-foreground/90 font-sans italic leading-relaxed">{review.ownerReply}</p>
+                      </div>
+                    )}
+
+                    {/* AI Reply Action */}
+                    <div className="mt-3 flex items-center justify-between pt-1 border-t border-border/30">
+                      <span className="text-xxs text-muted-foreground">
+                        {review.ownerReply ? "Replied to guest" : "Awaiting response"}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleStartReply(review)}
+                        className="text-xs font-medium h-7 px-2.5 gap-1.5 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                        <span>{review.ownerReply ? "Edit Reply" : "✨ AI Reply"}</span>
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
-              {filteredReviews.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  {selectedRestaurant 
+              {displayedReviews.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground font-body text-sm">
+                  {reviewSearch 
+                    ? `No reviews matching "${reviewSearch}"` 
+                    : selectedRestaurant 
                     ? `No reviews yet for ${selectedRestaurant.name}` 
                     : "No reviews yet"}
                 </div>
               )}
             </div>
+
+            {/* Pagination / Load More Footer */}
+            {searchedReviews.length > displayedReviews.length && (
+              <div className="mt-6 pt-4 border-t border-border/40 flex items-center justify-between flex-wrap gap-3">
+                <span className="text-xs text-muted-foreground font-body">
+                  Showing {displayedReviews.length} of {searchedReviews.length} reviews
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setVisibleReviewCount(prev => prev + 10)}
+                    className="text-xs font-body"
+                  >
+                    Load More (+10)
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setVisibleReviewCount(searchedReviews.length)}
+                    className="text-xs font-body text-primary"
+                  >
+                    Show All ({searchedReviews.length})
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </main>
       </div>
@@ -1101,6 +1498,207 @@ const OwnerDashboard = () => {
               Generate Report
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Health Pre-Audit Dialog */}
+      <Dialog open={isHealthAuditOpen} onOpenChange={setIsHealthAuditOpen}>
+        <DialogContent className="sm:max-w-[580px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-red-600">
+              <ShieldAlert className="w-5 h-5" />
+              <DialogTitle className="font-display text-lg">
+                Food Safety &amp; Health Inspection Pre-Audit
+              </DialogTitle>
+            </div>
+            <DialogDescription className="font-body text-xs text-muted-foreground">
+              Autonomous health hazard scanner analyzing guest feedback for food safety &amp; hygiene red flags
+            </DialogDescription>
+          </DialogHeader>
+
+          {isHealthAuditLoading ? (
+            <div className="py-12 flex flex-col items-center justify-center gap-3 text-center">
+              <Loader2 className="w-8 h-8 animate-spin text-red-600" />
+              <p className="font-body text-sm text-foreground font-medium">
+                Scanning customer review corpus for allergen, temperature, &amp; hygiene red flags...
+              </p>
+              <p className="text-xs text-muted-foreground">Synthesizing compliance audit via Gemini 3.6 Flash</p>
+            </div>
+          ) : healthAudit ? (
+            <div className="space-y-4 py-2 font-body text-xs">
+              {/* Score card */}
+              <div className="p-4 rounded-xl border bg-card/60 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-foreground text-xs uppercase tracking-wider">
+                    Inspection Vulnerability Index
+                  </span>
+                  <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border uppercase ${
+                    healthAudit.riskLevel === 'critical'
+                      ? 'bg-red-100 text-red-700 border-red-200'
+                      : healthAudit.riskLevel === 'moderate'
+                      ? 'bg-amber-100 text-amber-700 border-amber-200'
+                      : 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                  }`}>
+                    {healthAudit.riskLevel} Risk ({healthAudit.inspectionVulnerabilityScore}/100)
+                  </span>
+                </div>
+                
+                {/* Meter */}
+                <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-700 ${
+                      healthAudit.inspectionVulnerabilityScore > 50
+                        ? 'bg-red-500'
+                        : healthAudit.inspectionVulnerabilityScore > 25
+                        ? 'bg-amber-500'
+                        : 'bg-emerald-500'
+                    }`}
+                    style={{ width: `${healthAudit.inspectionVulnerabilityScore}%` }}
+                  />
+                </div>
+                <p className="text-muted-foreground text-xxs mt-1">
+                  {healthAudit.summary}
+                </p>
+              </div>
+
+              {/* Detected Risks */}
+              {healthAudit.detectedRisks?.length > 0 ? (
+                <div className="space-y-2">
+                  <span className="font-bold text-foreground text-xs block">
+                    Flagged Hazard Triggers:
+                  </span>
+                  <div className="space-y-2">
+                    {healthAudit.detectedRisks.map((risk, idx) => (
+                      <div key={idx} className="p-3 rounded-lg bg-red-50/60 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-red-800 dark:text-red-300 text-xs">
+                            {risk.category}
+                          </span>
+                          <span className="text-[10px] uppercase font-bold text-red-600 bg-red-100 dark:bg-red-900/40 px-1.5 py-0.5 rounded">
+                            {risk.urgency}
+                          </span>
+                        </div>
+                        <p className="text-red-950 dark:text-red-200 text-xs italic">
+                          &ldquo;{risk.triggerQuote}&rdquo;
+                        </p>
+                        <p className="text-muted-foreground text-xxs">
+                          {risk.riskDetails}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 rounded-lg bg-emerald-50/80 border border-emerald-200 text-emerald-800 flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>No critical health hazard triggers detected in the recent reviews!</span>
+                </div>
+              )}
+
+              {/* Morning Checklist */}
+              {healthAudit.morningChecklist?.length > 0 && (
+                <div className="space-y-2 pt-1">
+                  <span className="font-bold text-foreground text-xs block">
+                    Daily Opening Staff Checklist:
+                  </span>
+                  <div className="space-y-1.5">
+                    {healthAudit.morningChecklist.map((item, idx) => (
+                      <div key={idx} className="p-2.5 rounded-lg bg-muted/40 border border-border flex items-start gap-2 text-xs">
+                        <input type="checkbox" className="mt-0.5 rounded text-amber-600" />
+                        <span className="text-foreground">{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      {/* AI Smart Review Reply Dialog */}
+      <Dialog open={!!replyingReview} onOpenChange={(open) => !open && setReplyingReview(null)}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-amber-600">
+              <MessageCircleReply className="w-5 h-5" />
+              <DialogTitle className="font-display text-lg">
+                Public Owner Response
+              </DialogTitle>
+            </div>
+            <DialogDescription className="font-body text-xs text-muted-foreground">
+              Reply to <strong>{replyingReview?.customerName}</strong> ({replyingReview?.rating}/5 stars)
+            </DialogDescription>
+          </DialogHeader>
+
+          {replyingReview && (
+            <div className="space-y-4 py-2 font-body text-xs">
+              {/* Original Review */}
+              <div className="p-3 rounded-lg bg-muted/30 border border-border/60 text-muted-foreground italic">
+                &ldquo;{replyingReview.text}&rdquo;
+              </div>
+
+              {/* Tone Selector */}
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-foreground text-xs">AI Tone:</span>
+                <div className="flex gap-1.5">
+                  {(["warm", "professional", "concise"] as const).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => handleRegenerateReplyWithTone(t)}
+                      disabled={isGeneratingReply}
+                      className={`capitalize px-2.5 py-1 rounded-md text-[11px] font-medium border transition-all ${
+                        replyTone === t
+                          ? "bg-amber-500 text-white border-amber-600 shadow-xs"
+                          : "bg-background text-muted-foreground border-border hover:text-foreground"
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Draft Editor */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs font-semibold text-foreground">
+                  <span>Your Public Response:</span>
+                  {isGeneratingReply && (
+                    <span className="text-xxs text-amber-600 flex items-center gap-1 font-normal">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Generating...
+                    </span>
+                  )}
+                </div>
+                <Textarea
+                  value={replyDraft}
+                  onChange={(e) => setReplyDraft(e.target.value)}
+                  placeholder="Write or refine your public response..."
+                  rows={4}
+                  className="font-body text-xs leading-relaxed"
+                />
+              </div>
+
+              <DialogFooter className="gap-2 sm:gap-0 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setReplyingReview(null)}
+                  className="text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSaveReply}
+                  disabled={isSavingReply || !replyDraft.trim()}
+                  className="text-xs gradient-amber text-white font-semibold gap-1.5"
+                >
+                  {isSavingReply ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                  <span>Post Public Reply</span>
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

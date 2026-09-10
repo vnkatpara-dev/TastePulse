@@ -21,9 +21,9 @@ try {
   db = getFirestore(app);
 } catch (error) {
   console.warn("Firebase initialization warning (Shields/offline mode):", error);
-  app = {} as any;
-  auth = {} as any;
-  db = {} as any;
+  app = {} as unknown as FirebaseApp;
+  auth = {} as unknown as Auth;
+  db = {} as unknown as Firestore;
 }
 
 export { app, auth, db };

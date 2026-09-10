@@ -211,8 +211,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const demoPassword = "DemoUser123!#";
         try {
           await signInWithEmailAndPassword(auth, demoEmail, demoPassword);
-        } catch (err: any) {
-          if (err.code === "auth/user-not-found" || err.code === "auth/invalid-credential") {
+        } catch (err: unknown) {
+          const errorObj = err as { code?: string };
+          if (errorObj.code === "auth/user-not-found" || errorObj.code === "auth/invalid-credential") {
             try {
               await createUserWithEmailAndPassword(auth, demoEmail, demoPassword);
               if (auth.currentUser) {

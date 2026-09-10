@@ -24,7 +24,7 @@ const OwnerLogin = () => {
       await loginAsDemo("owner");
       toast.success("Signed in as Demo Restaurant Owner!");
       navigate("/owner/dashboard");
-    } catch (err: any) {
+    } catch (err) {
       console.error("Demo login error:", err);
       navigate("/owner/dashboard");
     } finally {
@@ -40,8 +40,8 @@ const OwnerLogin = () => {
     try {
       await signIn(email, password, "owner");
       navigate("/owner/dashboard");
-    } catch (err: any) {
-      setError(err.message || "Failed to sign in");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to sign in");
     } finally {
       setLoading(false);
     }
@@ -55,8 +55,8 @@ const OwnerLogin = () => {
     try {
       await signUp(email, password, "owner");
       navigate("/owner/dashboard");
-    } catch (err: any) {
-      setError(err.message || "Failed to sign up");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to sign up");
     } finally {
       setLoading(false);
     }

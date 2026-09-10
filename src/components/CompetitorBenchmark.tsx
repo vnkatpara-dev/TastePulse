@@ -1,9 +1,14 @@
-﻿import { CompetitorBenchmarkItem } from "@/services/api";
+import { useState } from "react";
+import { CompetitorBenchmarkItem } from "@/services/api";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ResponsiveContainer, Tooltip, Legend
 } from "recharts";
-import { Trophy, Medal } from "lucide-react";
+import { Trophy, Medal, Swords, Sparkles, Loader2, Target, CheckCircle, TrendingUp, Copy, Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { generateCompetitorExploitStrategy, CompetitorExploitStrategy } from "@/services/geminiService";
+import { toast } from "sonner";
 
 interface CompetitorBenchmarkProps {
   data: CompetitorBenchmarkItem[];
@@ -27,7 +32,35 @@ const DIMENSION_LABELS: Record<string, string> = {
   ambiance: "Ambiance",
 };
 
-export default function CompetitorBenchmark({ data, selectedRestaurantName, isLoading }: CompetitorBenchmarkProps) {
+export default function CompetitorBenchmark({ data, selectedRestaurantName = "The Golden Fork", isLoading }: CompetitorBenchmarkProps) {
+  const [isStrategyOpen, setIsStrategyOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [strategies, setStrategies] = useState<CompetitorExploitStrategy[]>([]);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+  const handleOpenPlaybook = async () => {
+    setIsStrategyOpen(true);
+    if (strategies.length > 0) return; // already loaded
+    setIsGenerating(true);
+    try {
+      const result = await generateCompetitorExploitStrategy(selectedRestaurantName, data);
+      setStrategies(result);
+    } catch (err) {
+      console.error("Failed to generate competitor strategy:", err);
+      toast.error("Failed to generate competitive playbook. Please try again.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleCopyStrategy = (strat: CompetitorExploitStrategy, idx: number) => {
+    const text = `CAMPAIGN: ${strat.offensiveCampaignTitle}\nTarget: ${strat.targetCompetitor}\nExploited Weakness: ${strat.competitorWeakness}\nOur Advantage: ${strat.ourAdvantage}\nTactical Move: ${strat.tacticalAction}\nPromo Angle: ${strat.promotionalAngle}`;
+    navigator.clipboard.writeText(text);
+    setCopiedIndex(idx);
+    toast.success("Campaign brief copied!");
+    setTimeout(() => setCopiedIndex(null), 2000);
+  };
+
   if (isLoading) {
     return <div className="h-80 rounded-xl bg-muted/30 animate-pulse" />;
   }
@@ -65,6 +98,21 @@ export default function CompetitorBenchmark({ data, selectedRestaurantName, isLo
 
   return (
     <div className="space-y-6">
+      {/* Action header */}
+      <div className="flex items-center justify-between flex-wrap gap-3 pb-2 border-b border-border/40">
+        <div className="text-xs text-muted-foreground font-body">
+          Cross-restaurant radar analysis across 5 dimensions. Compare metrics and exploit competitor service gaps.
+        </div>
+        <Button
+          onClick={handleOpenPlaybook}
+          size="sm"
+          className="text-xs gradient-amber text-white font-semibold gap-1.5 shadow-sm"
+        >
+          <Swords className="w-3.5 h-3.5" />
+          <span>Generate Offensive Playbook</span>
+        </Button>
+      </div>
+
       {/* Radar chart */}
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
@@ -181,6 +229,90 @@ export default function CompetitorBenchmark({ data, selectedRestaurantName, isLo
           </span>
         ))}
       </div>
+
+      {/* Competitor Exploitation Playbook Dialog */}
+      <Dialog open={isStrategyOpen} onOpenChange={setIsStrategyOpen}>
+        <DialogContent className="sm:max-w-[620px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-amber-600">
+              <Swords className="w-5 h-5" />
+              <DialogTitle className="font-display text-lg">
+                Competitor Vulnerability Exploitation Playbook
+              </DialogTitle>
+            </div>
+            <DialogDescription className="font-body text-xs text-muted-foreground">
+              Offensive marketing moves to capture market share from local competitors based on benchmark deltas
+            </DialogDescription>
+          </DialogHeader>
+
+          {isGenerating ? (
+            <div className="py-12 flex flex-col items-center justify-center gap-3 text-center">
+              <Loader2 className="w-8 h-8 animate-spin text-amber-600" />
+              <p className="font-body text-sm text-foreground font-medium">
+                Auditing competitor weaknesses vs. {selectedRestaurantName}&apos;s strengths...
+              </p>
+              <p className="text-xs text-muted-foreground">Generating growth-hacking playbook via Gemini 3.6 Flash</p>
+            </div>
+          ) : strategies.length > 0 ? (
+            <div className="space-y-4 py-2 font-body text-xs">
+              {strategies.map((strat, idx) => (
+                <div key={idx} className="p-4 rounded-xl border border-border bg-card/70 space-y-2.5 hover:border-amber-500/50 transition-all">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30 inline-block mb-1">
+                        Target: {strat.targetCompetitor}
+                      </span>
+                      <h4 className="font-display font-bold text-sm text-foreground">
+                        {strat.offensiveCampaignTitle}
+                      </h4>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        {strat.expectedMarketShareGain}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleCopyStrategy(strat, idx)}
+                        className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                        title="Copy Campaign Brief"
+                      >
+                        {copiedIndex === idx ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                    <div className="p-2 rounded bg-red-50/50 dark:bg-red-950/20 border border-red-200/50 text-red-900 dark:text-red-300">
+                      <span className="font-bold block text-[10px] uppercase text-red-700 dark:text-red-400">Their Vulnerability</span>
+                      {strat.competitorWeakness}
+                    </div>
+                    <div className="p-2 rounded bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/50 text-emerald-900 dark:text-emerald-300">
+                      <span className="font-bold block text-[10px] uppercase text-emerald-700 dark:text-emerald-400">Our Strategic Advantage</span>
+                      {strat.ourAdvantage}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1 text-xs">
+                    <div className="p-2.5 rounded-lg bg-muted/40 border border-border">
+                      <span className="font-bold text-[10px] text-muted-foreground uppercase block mb-0.5">Tactical Action:</span>
+                      <p className="text-foreground leading-relaxed">{strat.tacticalAction}</p>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-amber-50/30 border border-amber-200/40">
+                      <span className="font-bold text-[10px] text-amber-800 dark:text-amber-300 uppercase block mb-0.5">Marketing Hook &amp; Angle:</span>
+                      <p className="text-foreground italic leading-relaxed">&ldquo;{strat.promotionalAngle}&rdquo;</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="py-8 text-center text-muted-foreground text-xs">
+              No competitor strategies found.
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

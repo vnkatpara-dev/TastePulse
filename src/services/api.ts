@@ -77,46 +77,46 @@ const INITIAL_SEED_RESTAURANTS: Restaurant[] = [
     id: "1",
     name: "The Golden Fork",
     cuisine: "Italian",
-    averageRating: 4.2,
-    totalReviews: 5,
+    averageRating: 4.3,
+    totalReviews: 38,
     ownerUid: "demo_owner_1",
-    sentimentSummary: { positive: 3, negative: 1, neutral: 1, total: 5, averageRating: 4.2 }
+    sentimentSummary: { positive: 29, negative: 4, neutral: 5, total: 38, averageRating: 4.3 }
   },
   {
     id: "2",
     name: "Spice Route",
     cuisine: "Indian",
-    averageRating: 4.1,
-    totalReviews: 4,
+    averageRating: 4.4,
+    totalReviews: 36,
     ownerUid: "demo_owner_2",
-    sentimentSummary: { positive: 3, negative: 0, neutral: 1, total: 4, averageRating: 4.1 }
+    sentimentSummary: { positive: 28, negative: 4, neutral: 4, total: 36, averageRating: 4.4 }
   },
   {
     id: "3",
     name: "Ocean Breeze",
     cuisine: "Seafood",
-    averageRating: 4.4,
-    totalReviews: 3,
+    averageRating: 4.5,
+    totalReviews: 35,
     ownerUid: "demo_owner_3",
-    sentimentSummary: { positive: 2, negative: 0, neutral: 1, total: 3, averageRating: 4.4 }
+    sentimentSummary: { positive: 28, negative: 3, neutral: 4, total: 35, averageRating: 4.5 }
   },
   {
     id: "burger-shack-id",
     name: "Burger Shack",
     cuisine: "Fast Food",
-    averageRating: 3.8,
-    totalReviews: 2,
+    averageRating: 4.1,
+    totalReviews: 36,
     ownerUid: "demo_owner_4",
-    sentimentSummary: { positive: 1, negative: 1, neutral: 0, total: 2, averageRating: 3.8 }
+    sentimentSummary: { positive: 26, negative: 4, neutral: 6, total: 36, averageRating: 4.1 }
   },
   {
     id: "sakura-sushi-id",
     name: "Sakura Sushi",
     cuisine: "Japanese",
-    averageRating: 4.6,
-    totalReviews: 2,
+    averageRating: 4.7,
+    totalReviews: 35,
     ownerUid: "demo_owner_5",
-    sentimentSummary: { positive: 2, negative: 0, neutral: 0, total: 2, averageRating: 4.6 }
+    sentimentSummary: { positive: 30, negative: 2, neutral: 3, total: 35, averageRating: 4.7 }
   }
 ];
 
@@ -140,7 +140,201 @@ const INITIAL_SEED_REVIEWS: Review[] = [
   { id: "seed-14", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Sam W.", rating: 2, text: "Buns were cold and burger was overcooked. Disappointing visit.", sentiment: "negative", sentimentScore: 0.18, date: "2026-02-02", category: "Food Quality" },
 
   { id: "seed-15", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Yuki T.", rating: 5, text: "Mastercrafted sashimi and fresh nigiri with impeccable presentation.", sentiment: "positive", sentimentScore: 0.96, date: "2026-02-18", category: "Food Quality" },
-  { id: "seed-16", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Rachel G.", rating: 5, text: "Great dining atmosphere, polite servers, and delicious dragon rolls.", sentiment: "positive", sentimentScore: 0.93, date: "2026-02-15", category: "Service" }
+  { id: "seed-16", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Rachel G.", rating: 5, text: "Great dining atmosphere, polite servers, and delicious dragon rolls.", sentiment: "positive", sentimentScore: 0.93, date: "2026-02-15", category: "Service" },
+
+  // The Golden Fork additional mock reviews
+  { id: "seed-17", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Marcus V.", rating: 1, text: "Ribeye steak was tough and lukewarm when served. Extremely disappointed given the premium price.", sentiment: "negative", sentimentScore: 0.1, date: "2026-02-14", category: "Food Quality" },
+  { id: "seed-18", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Elena R.", rating: 5, text: "The homemade tiramisu and espresso were pure perfection. Highly recommend!", sentiment: "positive", sentimentScore: 0.95, date: "2026-02-12", category: "Food Quality" },
+  { id: "seed-19", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Carlos D.", rating: 3, text: "Good pasta but took 50 minutes to get our entrees during Saturday peak dinner.", sentiment: "neutral", sentimentScore: 0.48, date: "2026-02-10", category: "Service" },
+  { id: "seed-20", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Sophie T.", rating: 5, text: "Server Matteo was charming and gave great wine recommendations. Outstanding hospitality.", sentiment: "positive", sentimentScore: 0.96, date: "2026-02-08", category: "Service" },
+  { id: "seed-21", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Brian K.", rating: 2, text: "Tables were sticky and water glasses had smudges. Needs better sanitation oversight.", sentiment: "negative", sentimentScore: 0.16, date: "2026-02-06", category: "Hygiene" },
+  { id: "seed-22", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Hannah J.", rating: 4, text: "Cozy lighting and romantic jazz music in the background. Perfect anniversary dinner.", sentiment: "positive", sentimentScore: 0.86, date: "2026-02-03", category: "Ambiance" },
+
+  // Spice Route additional mock reviews
+  { id: "seed-23", restaurantId: "2", restaurantName: "Spice Route", customerName: "Vikram N.", rating: 5, text: "Mouthwatering lamb rogan josh and garlic naan fresh out of the tandoor.", sentiment: "positive", sentimentScore: 0.97, date: "2026-02-16", category: "Food Quality" },
+  { id: "seed-24", restaurantId: "2", restaurantName: "Spice Route", customerName: "Chloe B.", rating: 2, text: "Order took over an hour and arrived lukewarm. Disorganized floor management.", sentiment: "negative", sentimentScore: 0.14, date: "2026-02-13", category: "Service" },
+  { id: "seed-25", restaurantId: "2", restaurantName: "Spice Route", customerName: "Amir H.", rating: 4, text: "Flavorful biryani with tender chicken pieces. Good portion sizes for the price.", sentiment: "positive", sentimentScore: 0.88, date: "2026-02-11", category: "Value" },
+  { id: "seed-26", restaurantId: "2", restaurantName: "Spice Route", customerName: "Jessica W.", rating: 1, text: "Server ignored my allergy warning and the dish had cashews. Huge food safety risk!", sentiment: "negative", sentimentScore: 0.08, date: "2026-02-09", category: "Hygiene" },
+  { id: "seed-27", restaurantId: "2", restaurantName: "Spice Route", customerName: "Oliver C.", rating: 4, text: "Exotic interior decor and fragrant aromas as soon as you step through the door.", sentiment: "positive", sentimentScore: 0.84, date: "2026-02-04", category: "Ambiance" },
+
+  // Ocean Breeze additional mock reviews
+  { id: "seed-28", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Rebecca M.", rating: 1, text: "Lobster bisque was way too salty, couldn't even finish half of the bowl.", sentiment: "negative", sentimentScore: 0.12, date: "2026-02-15", category: "Food Quality" },
+  { id: "seed-29", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Daniel G.", rating: 5, text: "Pan-seared Chilean sea bass with lemon herb butter was an absolute triumph.", sentiment: "positive", sentimentScore: 0.98, date: "2026-02-14", category: "Food Quality" },
+  { id: "seed-30", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Zoe F.", rating: 2, text: "Charged $45 for corkage fee with zero explanation. Felt ripped off.", sentiment: "negative", sentimentScore: 0.19, date: "2026-02-10", category: "Value" },
+  { id: "seed-31", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Kevin S.", rating: 5, text: "Attentive waitstaff, never had an empty water glass all evening.", sentiment: "positive", sentimentScore: 0.91, date: "2026-02-07", category: "Service" },
+  { id: "seed-32", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Natalie P.", rating: 4, text: "Stunning patio overlooking the harbor. Seafood platter was generous and fresh.", sentiment: "positive", sentimentScore: 0.89, date: "2026-02-03", category: "Ambiance" },
+
+  // Burger Shack additional mock reviews
+  { id: "seed-33", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Dylan O.", rating: 5, text: "Double bacon cheeseburger with truffle mayo is life-changing. Great crispy fries.", sentiment: "positive", sentimentScore: 0.95, date: "2026-02-17", category: "Food Quality" },
+  { id: "seed-34", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Tara K.", rating: 1, text: "Dirty tables in the dining area and overflowing trash cans. Needs cleaning.", sentiment: "negative", sentimentScore: 0.09, date: "2026-02-11", category: "Hygiene" },
+  { id: "seed-35", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Leo B.", rating: 4, text: "Great combo deals for families. Quick drive-thru expediting.", sentiment: "positive", sentimentScore: 0.84, date: "2026-02-08", category: "Value" },
+  { id: "seed-36", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Maya L.", rating: 3, text: "Burger was fine but onion rings were greasy and soft instead of crispy.", sentiment: "neutral", sentimentScore: 0.49, date: "2026-02-05", category: "Food Quality" },
+
+  // Sakura Sushi additional mock reviews
+  { id: "seed-37", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Kenji M.", rating: 5, text: "Omakase was incredible. Each piece of nigiri had perfect temperature and seasoning.", sentiment: "positive", sentimentScore: 0.99, date: "2026-02-17", category: "Food Quality" },
+  { id: "seed-38", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Brooke T.", rating: 3, text: "Delicious rolls but cramped seating and loud pop music disrupted the sushi vibe.", sentiment: "neutral", sentimentScore: 0.52, date: "2026-02-13", category: "Ambiance" },
+  { id: "seed-39", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Evan R.", rating: 5, text: "Generous lunch bento box with sashimi and miso soup. Fantastic value!", sentiment: "positive", sentimentScore: 0.92, date: "2026-02-09", category: "Value" },
+  { id: "seed-40", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Lucas H.", rating: 2, text: "Waitress was dismissive when we inquired about gluten-free soy sauce.", sentiment: "negative", sentimentScore: 0.2, date: "2026-02-04", category: "Service" },
+
+  // Vast pool: The Golden Fork (Italian)
+  { id: "seed-41", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Gabriel C.", rating: 5, text: "The carbonara with crispy guanciale was authentic and velvety. Felt like dining in Rome.", sentiment: "positive", sentimentScore: 0.96, date: "2026-01-29", category: "Food Quality" },
+  { id: "seed-42", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Natasha P.", rating: 4, text: "Pleasant atmosphere and the burrata salad was extremely fresh.", sentiment: "positive", sentimentScore: 0.87, date: "2026-01-25", category: "Ambiance" },
+  { id: "seed-43", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Derrick B.", rating: 2, text: "Waitstaff seemed overwhelmed and forgot our sparkling water twice.", sentiment: "negative", sentimentScore: 0.17, date: "2026-01-20", category: "Service" },
+  { id: "seed-44", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Fiona S.", rating: 5, text: "Exceptional veal osso buco! Melt-in-your-mouth tenderness and rich sauce.", sentiment: "positive", sentimentScore: 0.98, date: "2026-01-14", category: "Food Quality" },
+  { id: "seed-45", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Trevor K.", rating: 3, text: "Good flavors but portions are conservative for the steep bill.", sentiment: "neutral", sentimentScore: 0.46, date: "2026-01-08", category: "Value" },
+  { id: "seed-46", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Gemma D.", rating: 5, text: "Impeccable table service and the sommelier was knowledgeable and unassuming.", sentiment: "positive", sentimentScore: 0.94, date: "2025-12-28", category: "Service" },
+  { id: "seed-47", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Sean L.", rating: 4, text: "Festive holiday ambiance with tasteful festive lighting and soft jazz.", sentiment: "positive", sentimentScore: 0.89, date: "2025-12-22", category: "Ambiance" },
+  { id: "seed-48", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Melissa V.", rating: 1, text: "Lasagna was cold in the center like it had just come out of a microwave.", sentiment: "negative", sentimentScore: 0.07, date: "2025-12-15", category: "Food Quality" },
+  { id: "seed-49", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Arthur W.", rating: 5, text: "Handmade tagliatelle with wild mushroom sauce was heavenly.", sentiment: "positive", sentimentScore: 0.95, date: "2025-11-20", category: "Food Quality" },
+  { id: "seed-50", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Kendra M.", rating: 4, text: "Consistently good Italian. A reliable spot for family Sunday dinners.", sentiment: "positive", sentimentScore: 0.83, date: "2025-10-18", category: "General" },
+
+  // Vast pool: Spice Route (Indian)
+  { id: "seed-51", restaurantId: "2", restaurantName: "Spice Route", customerName: "Devon R.", rating: 5, text: "The paneer makhani and garlic naan are unmatched in this city.", sentiment: "positive", sentimentScore: 0.94, date: "2026-01-30", category: "Food Quality" },
+  { id: "seed-52", restaurantId: "2", restaurantName: "Spice Route", customerName: "Sunil G.", rating: 5, text: "Authentic Lucknowi mutton dum biryani with saffron notes. 10/10!", sentiment: "positive", sentimentScore: 0.99, date: "2026-01-26", category: "Food Quality" },
+  { id: "seed-53", restaurantId: "2", restaurantName: "Spice Route", customerName: "Megan O.", rating: 2, text: "Long queue outside even with a reservation, and lobby was freezing cold.", sentiment: "negative", sentimentScore: 0.16, date: "2026-01-21", category: "Service" },
+  { id: "seed-54", restaurantId: "2", restaurantName: "Spice Route", customerName: "Harish B.", rating: 4, text: "Rich gravies and polite staff. Gulab jamun dessert was piping hot.", sentiment: "positive", sentimentScore: 0.88, date: "2026-01-15", category: "Food Quality" },
+  { id: "seed-55", restaurantId: "2", restaurantName: "Spice Route", customerName: "Kelly Y.", rating: 3, text: "Chicken tikka was slightly charred, but mint chutney was refreshing.", sentiment: "neutral", sentimentScore: 0.51, date: "2026-01-09", category: "Food Quality" },
+  { id: "seed-56", restaurantId: "2", restaurantName: "Spice Route", customerName: "Arjun V.", rating: 5, text: "Flawless hospitality. Chef accommodated my grandmother's mild spice request with grace.", sentiment: "positive", sentimentScore: 0.96, date: "2025-12-29", category: "Service" },
+  { id: "seed-57", restaurantId: "2", restaurantName: "Spice Route", customerName: "Leah S.", rating: 4, text: "Spacious seating, beautiful brass tableware, and royal decor.", sentiment: "positive", sentimentScore: 0.85, date: "2025-12-18", category: "Ambiance" },
+  { id: "seed-58", restaurantId: "2", restaurantName: "Spice Route", customerName: "Raj K.", rating: 1, text: "Dirty silverware on table and found lint in the drinking water.", sentiment: "negative", sentimentScore: 0.06, date: "2025-11-28", category: "Hygiene" },
+  { id: "seed-59", restaurantId: "2", restaurantName: "Spice Route", customerName: "Belinda M.", rating: 5, text: "Unbelievable value on the weekend buffet spread with 20+ dishes.", sentiment: "positive", sentimentScore: 0.93, date: "2025-11-12", category: "Value" },
+  { id: "seed-60", restaurantId: "2", restaurantName: "Spice Route", customerName: "Nikhil T.", rating: 4, text: "Dal makhani was simmered to perfection with rich buttery layers.", sentiment: "positive", sentimentScore: 0.91, date: "2025-10-15", category: "Food Quality" },
+
+  // Vast pool: Ocean Breeze (Seafood)
+  { id: "seed-61", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Courtney B.", rating: 5, text: "King crab legs were steamed to perfection with clarified drawn butter.", sentiment: "positive", sentimentScore: 0.97, date: "2026-01-28", category: "Food Quality" },
+  { id: "seed-62", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Tyler W.", rating: 4, text: "Fresh Kumamoto oysters on the half shell were briny and cold. Stellar.", sentiment: "positive", sentimentScore: 0.91, date: "2026-01-23", category: "Food Quality" },
+  { id: "seed-63", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Vanessa E.", rating: 2, text: "Fish and chips had oily batter and fries were limp. Expected better.", sentiment: "negative", sentimentScore: 0.18, date: "2026-01-18", category: "Food Quality" },
+  { id: "seed-64", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Harrison D.", rating: 5, text: "Panoramic view of the bay during golden hour. Breathtaking sunset dinner.", sentiment: "positive", sentimentScore: 0.98, date: "2026-01-11", category: "Ambiance" },
+  { id: "seed-65", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Paige K.", rating: 3, text: "Food is fresh but cocktails are $22 each which feels excessive.", sentiment: "neutral", sentimentScore: 0.44, date: "2026-01-05", category: "Value" },
+  { id: "seed-66", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Dennis N.", rating: 5, text: "Clam chowder in sourdough bread bowl was piping hot and packed with clams.", sentiment: "positive", sentimentScore: 0.94, date: "2025-12-27", category: "Food Quality" },
+  { id: "seed-67", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Alana H.", rating: 4, text: "Prompt seating and polite server made our corporate dinner seamless.", sentiment: "positive", sentimentScore: 0.88, date: "2025-12-14", category: "Service" },
+  { id: "seed-68", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Gregory R.", rating: 1, text: "Mussels were fishy and smelled bad. Left without eating mains.", sentiment: "negative", sentimentScore: 0.05, date: "2025-11-25", category: "Hygiene" },
+  { id: "seed-69", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Tiffany C.", rating: 5, text: "Seared sea scallops over butternut squash puree were sublime.", sentiment: "positive", sentimentScore: 0.95, date: "2025-11-09", category: "Food Quality" },
+  { id: "seed-70", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Joel P.", rating: 4, text: "Wonderful outdoor heaters on the deck allowing comfortable outdoor dining.", sentiment: "positive", sentimentScore: 0.86, date: "2025-10-22", category: "Ambiance" },
+
+  // Vast pool: Burger Shack (Fast Food)
+  { id: "seed-71", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Brandon J.", rating: 5, text: "Crispy chicken sandwich with house spicy slaw hits the spot every single time.", sentiment: "positive", sentimentScore: 0.93, date: "2026-01-31", category: "Food Quality" },
+  { id: "seed-72", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Chloe H.", rating: 5, text: "Smash patties with crispy lacy edges and secret sauce are addictive.", sentiment: "positive", sentimentScore: 0.96, date: "2026-01-27", category: "Food Quality" },
+  { id: "seed-73", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Austin G.", rating: 2, text: "Drive-thru line was 15 cars deep and took 35 minutes on a Tuesday night.", sentiment: "negative", sentimentScore: 0.15, date: "2026-01-19", category: "Service" },
+  { id: "seed-74", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Morgan K.", rating: 4, text: "Thick malt chocolate shake and seasoned crinkle cut fries were great.", sentiment: "positive", sentimentScore: 0.89, date: "2026-01-12", category: "Food Quality" },
+  { id: "seed-75", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Trevor P.", rating: 4, text: "Can feed the whole crew for under $40. Best value fast casual around.", sentiment: "positive", sentimentScore: 0.91, date: "2026-01-06", category: "Value" },
+  { id: "seed-76", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Abby R.", rating: 1, text: "Found a piece of plastic wrap melted inside the cheese patty. Gross!", sentiment: "negative", sentimentScore: 0.04, date: "2025-12-30", category: "Hygiene" },
+  { id: "seed-77", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Kyle B.", rating: 5, text: "Super friendly cashier and order was ready at the counter in under 4 minutes.", sentiment: "positive", sentimentScore: 0.92, date: "2025-12-16", category: "Service" },
+  { id: "seed-78", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Samantha M.", rating: 3, text: "Burger was warm but salty. Vanilla shake had good consistency.", sentiment: "neutral", sentimentScore: 0.50, date: "2025-11-22", category: "Food Quality" },
+  { id: "seed-79", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Justin L.", rating: 4, text: "Neon retro diner aesthetic with arcade machines in the corner. Fun vibe.", sentiment: "positive", sentimentScore: 0.85, date: "2025-11-05", category: "Ambiance" },
+  { id: "seed-80", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Diana F.", rating: 4, text: "Loaded bacon cheese tots were decadent and super crispy.", sentiment: "positive", sentimentScore: 0.88, date: "2025-10-14", category: "Food Quality" },
+
+  // Vast pool: Sakura Sushi (Japanese)
+  { id: "seed-81", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Hiroshi S.", rating: 5, text: "Otoro and uni melted in the mouth. High-grade fish flown directly from Toyosu.", sentiment: "positive", sentimentScore: 0.99, date: "2026-01-30", category: "Food Quality" },
+  { id: "seed-82", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Claire D.", rating: 5, text: "Spicy crunchy tuna roll and yellowtail jalapeño sashimi were perfection.", sentiment: "positive", sentimentScore: 0.95, date: "2026-01-24", category: "Food Quality" },
+  { id: "seed-83", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Patrick N.", rating: 2, text: "Sushi chef was rushing through the omakase courses, felt very hurried.", sentiment: "negative", sentimentScore: 0.22, date: "2026-01-16", category: "Service" },
+  { id: "seed-84", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Naomi K.", rating: 5, text: "Spotless sushi bar, chefs wash hands constantly, and knife work is mesmerizing.", sentiment: "positive", sentimentScore: 0.97, date: "2026-01-10", category: "Hygiene" },
+  { id: "seed-85", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Garrett V.", rating: 4, text: "Warm green tea refill every few minutes. Subtle minimalist bamboo aesthetic.", sentiment: "positive", sentimentScore: 0.90, date: "2026-01-04", category: "Ambiance" },
+  { id: "seed-86", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Victoria W.", rating: 3, text: "Good sushi but $140 for two without drinks feels on the high side.", sentiment: "neutral", sentimentScore: 0.47, date: "2025-12-28", category: "Value" },
+  { id: "seed-87", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Wesley F.", rating: 5, text: "Warm unagi roll with sweet eel glaze was out of this world.", sentiment: "positive", sentimentScore: 0.96, date: "2025-12-19", category: "Food Quality" },
+  { id: "seed-88", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Audrey T.", rating: 4, text: "Crispy shrimp tempura with light dipping sauce. Fresh and greaseless.", sentiment: "positive", sentimentScore: 0.91, date: "2025-11-29", category: "Food Quality" },
+  { id: "seed-89", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Ian C.", rating: 5, text: "Matcha green tea ice cream to end the dinner was divine.", sentiment: "positive", sentimentScore: 0.93, date: "2025-11-15", category: "Food Quality" },
+  { id: "seed-90", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Lillian G.", rating: 4, text: "Wonderful service and complimentary edamame while we waited for our rolls.", sentiment: "positive", sentimentScore: 0.89, date: "2025-10-25", category: "Service" },
+
+  // ─── Extensive Pool: The Golden Fork ──────────────────────────────────────────
+  { id: "seed-91", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Marco B.", rating: 5, text: "The wild mushroom risotto was creamy, aromatic, and cooked to an absolute al dente perfection.", sentiment: "positive", sentimentScore: 0.98, date: "2026-02-17", category: "Food Quality", ownerReply: "Grazie mille Marco! Our chef uses fresh imported porcini for that exact depth of flavor.", ownerReplyDate: "2026-02-18" },
+  { id: "seed-92", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Stephanie N.", rating: 4, text: "Crispy calamari fritti with spicy marinara sauce was a delightful appetizer. Cocktails were strong.", sentiment: "positive", sentimentScore: 0.88, date: "2026-02-11", category: "Food Quality" },
+  { id: "seed-93", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Anthony P.", rating: 2, text: "Our ribeye steak was ordered medium-rare but arrived heavily charred and well-done. Kitchen offered no discount.", sentiment: "negative", sentimentScore: 0.14, date: "2026-02-05", category: "Food Quality", ownerReply: "Anthony, we sincerely apologize for failing our internal grilling standards. Please allow us to make this right on your next visit.", ownerReplyDate: "2026-02-06" },
+  { id: "seed-94", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Danielle C.", rating: 5, text: "Best cannoli in the city! Ricotta filling was light and sweet with dark chocolate chips.", sentiment: "positive", sentimentScore: 0.96, date: "2026-01-28", category: "Food Quality" },
+  { id: "seed-95", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Victor S.", rating: 3, text: "Great ambiance and live acoustic guitarist, but tables are packed too tightly together.", sentiment: "neutral", sentimentScore: 0.52, date: "2026-01-22", category: "Ambiance" },
+  { id: "seed-96", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Valerie H.", rating: 5, text: "The sommelier helped us select a fantastic Chianti Classico that paired brilliantly with the truffle pasta.", sentiment: "positive", sentimentScore: 0.97, date: "2026-01-15", category: "Service" },
+  { id: "seed-97", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Kenneth D.", rating: 4, text: "Generous portions of eggplant parmigiana and warm rosemary focaccia bread.", sentiment: "positive", sentimentScore: 0.86, date: "2026-01-07", category: "Food Quality" },
+  { id: "seed-98", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Paula E.", rating: 1, text: "Restroom was out of hand soap and toilet paper during Friday prime time. Basic hygiene was neglected.", sentiment: "negative", sentimentScore: 0.05, date: "2025-12-26", category: "Hygiene", ownerReply: "Paula, thank you for bringing this to our attention. We have reinforced hourly restroom audits for our facilities team.", ownerReplyDate: "2025-12-27" },
+  { id: "seed-99", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Raymond K.", rating: 5, text: "Brought 8 guests for an executive lunch. The private dining room service was discreet and flawless.", sentiment: "positive", sentimentScore: 0.95, date: "2025-12-18", category: "Service" },
+  { id: "seed-100", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Gloria W.", rating: 4, text: "Decadent chocolate hazelnut torta and espresso. Elegant presentation.", sentiment: "positive", sentimentScore: 0.91, date: "2025-12-10", category: "Food Quality" },
+  { id: "seed-101", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Lucas B.", rating: 3, text: "Pasta sauce was delicious, but $36 for a small pasta dish tests the value boundary.", sentiment: "neutral", sentimentScore: 0.47, date: "2025-11-28", category: "Value" },
+  { id: "seed-102", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Christine F.", rating: 5, text: "Third time here this year. The consistency of flavor and hospitality keeps us coming back.", sentiment: "positive", sentimentScore: 0.99, date: "2025-11-19", category: "General" },
+  { id: "seed-103", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Simon L.", rating: 4, text: "Excellent burrata caprese salad with sweet balsamic reduction.", sentiment: "positive", sentimentScore: 0.89, date: "2025-11-08", category: "Food Quality" },
+  { id: "seed-104", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Teresa J.", rating: 2, text: "Waited 25 minutes after finishing our meal just to flag down the server for the check.", sentiment: "negative", sentimentScore: 0.18, date: "2025-10-30", category: "Service" },
+  { id: "seed-105", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Arthur G.", rating: 5, text: "The slow-braised beef ragu pappardelle melted on the tongue. Pure culinary artistry.", sentiment: "positive", sentimentScore: 0.98, date: "2025-10-21", category: "Food Quality" },
+  { id: "seed-106", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Monica R.", rating: 4, text: "Valet parking was quick and courtyard seating with heat lamps felt very European.", sentiment: "positive", sentimentScore: 0.87, date: "2025-10-12", category: "Ambiance" },
+  { id: "seed-107", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Dean M.", rating: 5, text: "Flawless wine pairing dinner. Chef came out to explain the heritage olive oil.", sentiment: "positive", sentimentScore: 0.94, date: "2025-09-27", category: "Service" },
+  { id: "seed-108", restaurantId: "1", restaurantName: "The Golden Fork", customerName: "Elaine T.", rating: 4, text: "Authentic panna cotta with fresh blackberry compote. Lovely ending to the meal.", sentiment: "positive", sentimentScore: 0.90, date: "2025-09-14", category: "Food Quality" },
+
+  // ─── Extensive Pool: Spice Route ──────────────────────────────────────────────
+  { id: "seed-109", restaurantId: "2", restaurantName: "Spice Route", customerName: "Rohan P.", rating: 5, text: "The garlic naan was blistered to perfection with rich butter glaze. Goes amazingly with their lamb curry.", sentiment: "positive", sentimentScore: 0.98, date: "2026-02-18", category: "Food Quality", ownerReply: "Thank you Rohan! Our tandoor master prepares each naan fresh on order.", ownerReplyDate: "2026-02-18" },
+  { id: "seed-110", restaurantId: "2", restaurantName: "Spice Route", customerName: "Samantha K.", rating: 4, text: "Crispy samosas packed with spiced potatoes and peas, served with tangy tamarind dip.", sentiment: "positive", sentimentScore: 0.90, date: "2026-02-12", category: "Food Quality" },
+  { id: "seed-111", restaurantId: "2", restaurantName: "Spice Route", customerName: "Deepak S.", rating: 5, text: "Phenomenal tandoori mixed grill platter! The chicken tikka and seekh kebabs were juicy and smoky.", sentiment: "positive", sentimentScore: 0.97, date: "2026-02-04", category: "Food Quality" },
+  { id: "seed-112", restaurantId: "2", restaurantName: "Spice Route", customerName: "Kaitlyn M.", rating: 2, text: "Requested mild spice for my child's chicken korma, but it arrived fiery hot. Server argued it was mild.", sentiment: "negative", sentimentScore: 0.16, date: "2026-01-27", category: "Service", ownerReply: "Kaitlyn, we deeply apologize for the miscommunication on heat levels. We have retrained our kitchen on non-spicy preparation.", ownerReplyDate: "2026-01-28" },
+  { id: "seed-113", restaurantId: "2", restaurantName: "Spice Route", customerName: "Ananya J.", rating: 5, text: "Best mango lassi in town! Thick, creamy, and made with real Alphonso mango pulp.", sentiment: "positive", sentimentScore: 0.95, date: "2026-01-19", category: "Food Quality" },
+  { id: "seed-114", restaurantId: "2", restaurantName: "Spice Route", customerName: "George F.", rating: 4, text: "Generous lunch thali with 5 different curries, rice, and dessert for only $18. Great value.", sentiment: "positive", sentimentScore: 0.92, date: "2026-01-12", category: "Value" },
+  { id: "seed-115", restaurantId: "2", restaurantName: "Spice Route", customerName: "Farhan A.", rating: 5, text: "The dal tadka with jeera rice tasted exactly like homestyle Punjabi cooking.", sentiment: "positive", sentimentScore: 0.96, date: "2026-01-03", category: "Food Quality" },
+  { id: "seed-116", restaurantId: "2", restaurantName: "Spice Route", customerName: "Lindsay B.", rating: 3, text: "Rich aromas and flavors, but the dining room music was a bit loud for our business meeting.", sentiment: "neutral", sentimentScore: 0.50, date: "2025-12-27", category: "Ambiance" },
+  { id: "seed-117", restaurantId: "2", restaurantName: "Spice Route", customerName: "Manish D.", rating: 5, text: "Their rogan josh has layers of cardamom and Kashmiri chili. Absolutely stellar depth.", sentiment: "positive", sentimentScore: 0.97, date: "2025-12-20", category: "Food Quality" },
+  { id: "seed-118", restaurantId: "2", restaurantName: "Spice Route", customerName: "Clara U.", rating: 4, text: "Attentive tea service with cardamom spiced masala chai refilled warmly.", sentiment: "positive", sentimentScore: 0.88, date: "2025-12-11", category: "Service" },
+  { id: "seed-119", restaurantId: "2", restaurantName: "Spice Route", customerName: "Neil T.", rating: 1, text: "Spotted food debris under the booth cushions. Cleaning between seating needs serious improvement.", sentiment: "negative", sentimentScore: 0.08, date: "2025-11-26", category: "Hygiene", ownerReply: "Neil, we take cleanliness with utmost seriousness. Deep cleaning of all booths was executed immediately.", ownerReplyDate: "2025-11-27" },
+  { id: "seed-120", restaurantId: "2", restaurantName: "Spice Route", customerName: "Tara S.", rating: 5, text: "The rasmalai dessert was delicate, soaked in saffron pistachio milk. Divine ending.", sentiment: "positive", sentimentScore: 0.94, date: "2025-11-17", category: "Food Quality" },
+  { id: "seed-121", restaurantId: "2", restaurantName: "Spice Route", customerName: "Colin W.", rating: 4, text: "Palak paneer was silky and vibrant green, paneer cubes were soft and fresh.", sentiment: "positive", sentimentScore: 0.91, date: "2025-11-06", category: "Food Quality" },
+  { id: "seed-122", restaurantId: "2", restaurantName: "Spice Route", customerName: "Meera C.", rating: 5, text: "Hosted our Diwali family dinner here. Staff handled 16 people with calm efficiency.", sentiment: "positive", sentimentScore: 0.98, date: "2025-10-28", category: "Service" },
+  { id: "seed-123", restaurantId: "2", restaurantName: "Spice Route", customerName: "Sean V.", rating: 3, text: "Food is tasty but drink prices are elevated compared to other Indian bistros.", sentiment: "neutral", sentimentScore: 0.48, date: "2025-10-18", category: "Value" },
+  { id: "seed-124", restaurantId: "2", restaurantName: "Spice Route", customerName: "Ayesha N.", rating: 5, text: "Dum chicken biryani served in an earthen clay pot sealing the aroma. Unbelievable taste!", sentiment: "positive", sentimentScore: 0.99, date: "2025-10-09", category: "Food Quality" },
+  { id: "seed-125", restaurantId: "2", restaurantName: "Spice Route", customerName: "Bradley H.", rating: 4, text: "Warm hospitality and complimentary papadums with 3 homemade chutneys.", sentiment: "positive", sentimentScore: 0.89, date: "2025-09-25", category: "General" },
+  { id: "seed-126", restaurantId: "2", restaurantName: "Spice Route", customerName: "Pooja G.", rating: 5, text: "Tandoori prawns were giant and succulent with charred lemon slices. 10/10.", sentiment: "positive", sentimentScore: 0.96, date: "2025-09-12", category: "Food Quality" },
+
+  // ─── Extensive Pool: Ocean Breeze ─────────────────────────────────────────────
+  { id: "seed-127", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Elliott J.", rating: 5, text: "The Maine lobster roll served on warm toasted brioche with brown butter mayo is unbeatable.", sentiment: "positive", sentimentScore: 0.97, date: "2026-02-16", category: "Food Quality", ownerReply: "Elliott, glad you loved the lobster roll! We source our brioche daily from an artisan bakery.", ownerReplyDate: "2026-02-17" },
+  { id: "seed-128", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Gretchen S.", rating: 5, text: "Crispy skin Atlantic salmon over saffron cauliflower risotto was exquisite.", sentiment: "positive", sentimentScore: 0.95, date: "2026-02-09", category: "Food Quality" },
+  { id: "seed-129", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Darren O.", rating: 2, text: "Oysters were served at room temperature rather than on fresh crushed ice. Food safety concern.", sentiment: "negative", sentimentScore: 0.13, date: "2026-02-02", category: "Hygiene", ownerReply: "Darren, thank you for alerting us. We immediately replaced the ice bed service equipment.", ownerReplyDate: "2026-02-03" },
+  { id: "seed-130", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Kendra L.", rating: 4, text: "Seafood paella for two was brimming with mussels, calamari, and tiger prawns. Great saffron socarrat.", sentiment: "positive", sentimentScore: 0.92, date: "2026-01-26", category: "Food Quality" },
+  { id: "seed-131", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Stuart B.", rating: 4, text: "Spectacular harbor view table for our anniversary. Waiter brought complimentary prosecco.", sentiment: "positive", sentimentScore: 0.93, date: "2026-01-18", category: "Ambiance" },
+  { id: "seed-132", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Miriam E.", rating: 3, text: "Clam chowder was delicious, but fish tacos were slightly bland and needed more lime.", sentiment: "neutral", sentimentScore: 0.49, date: "2026-01-10", category: "Food Quality" },
+  { id: "seed-133", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Brett F.", rating: 5, text: "Pan-seared jumbo scallops with truffle pea puree was the highlight of our culinary week.", sentiment: "positive", sentimentScore: 0.98, date: "2026-01-02", category: "Food Quality" },
+  { id: "seed-134", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Heather M.", rating: 4, text: "Staff was remarkably knowledgeable about fish seasonality and mercury profiles.", sentiment: "positive", sentimentScore: 0.88, date: "2025-12-23", category: "Service" },
+  { id: "seed-135", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Zachary T.", rating: 2, text: "Charged $18 for a slice of cheesecake that looked like it had been sitting in a display case for days.", sentiment: "negative", sentimentScore: 0.17, date: "2025-12-15", category: "Value" },
+  { id: "seed-136", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Danielle Y.", rating: 5, text: "Fresh Dungeness crab cakes with zero breading filler. Real pure lump crab goodness.", sentiment: "positive", sentimentScore: 0.97, date: "2025-12-07", category: "Food Quality" },
+  { id: "seed-137", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Paulina R.", rating: 4, text: "Outdoor patio heaters made December ocean-side dining surprisingly cozy and romantic.", sentiment: "positive", sentimentScore: 0.89, date: "2025-11-27", category: "Ambiance" },
+  { id: "seed-138", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Curtis D.", rating: 5, text: "Grilled sea bass with lemon caper emulsion. Melted like butter.", sentiment: "positive", sentimentScore: 0.96, date: "2025-11-18", category: "Food Quality" },
+  { id: "seed-139", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Nora K.", rating: 4, text: "Prompt water refills and our server offered great advice on wine by the glass.", sentiment: "positive", sentimentScore: 0.87, date: "2025-11-04", category: "Service" },
+  { id: "seed-140", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Felix G.", rating: 1, text: "Hostess lost our OpenTable reservation and made us wait 45 minutes at the cold entrance.", sentiment: "negative", sentimentScore: 0.11, date: "2025-10-26", category: "Service" },
+  { id: "seed-141", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Brooke A.", rating: 5, text: "Calamari was tender, crisp, and served with a zesty roasted red pepper remoulade.", sentiment: "positive", sentimentScore: 0.94, date: "2025-10-15", category: "Food Quality" },
+  { id: "seed-142", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Jason C.", rating: 4, text: "Freshly shucked Kumamoto oysters with champagne mignonette were world-class.", sentiment: "positive", sentimentScore: 0.92, date: "2025-10-06", category: "Food Quality" },
+  { id: "seed-143", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Chloe P.", rating: 5, text: "Warm molten chocolate lava cake paired with salted caramel gelato. Sublime!", sentiment: "positive", sentimentScore: 0.95, date: "2025-09-24", category: "Food Quality" },
+  { id: "seed-144", restaurantId: "3", restaurantName: "Ocean Breeze", customerName: "Wade S.", rating: 4, text: "Solid seafood destination. Clean restrooms, ocean views, and reliable quality.", sentiment: "positive", sentimentScore: 0.89, date: "2025-09-10", category: "General" },
+
+  // ─── Extensive Pool: Burger Shack ─────────────────────────────────────────────
+  { id: "seed-145", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Tanner W.", rating: 5, text: "The Oklahoma onion smash burger with crispy lace edges is the best burger in the metro area.", sentiment: "positive", sentimentScore: 0.99, date: "2026-02-17", category: "Food Quality", ownerReply: "Tanner, that's what we live for! Fresh 80/20 chuck smashed on a 450-degree flat top!", ownerReplyDate: "2026-02-18" },
+  { id: "seed-146", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Kayla R.", rating: 4, text: "Truffle parmesan crinkle-cut fries are addictive. Big portion easily shared between two.", sentiment: "positive", sentimentScore: 0.91, date: "2026-02-10", category: "Food Quality" },
+  { id: "seed-147", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Derrick J.", rating: 1, text: "Ordered delivery via DoorDash. Both burgers were stone cold and cheese wasn't even melted.", sentiment: "negative", sentimentScore: 0.09, date: "2026-02-03", category: "Food Quality", ownerReply: "Derrick, we're sorry for the poor delivery courier transit. Please reach out so we can comp your meal.", ownerReplyDate: "2026-02-04" },
+  { id: "seed-148", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Shelby M.", rating: 5, text: "Salted caramel pretzel shake was heavenly. Perfect consistency without being too icy.", sentiment: "positive", sentimentScore: 0.96, date: "2026-01-25", category: "Food Quality" },
+  { id: "seed-149", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Mitchell S.", rating: 4, text: "Spicy jalapeno bacon burger had serious kick! Bacon was thick cut and smoky.", sentiment: "positive", sentimentScore: 0.92, date: "2026-01-17", category: "Food Quality" },
+  { id: "seed-150", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Janice K.", rating: 3, text: "Great burger but the music volume inside was deafening. Hard to talk to my kids.", sentiment: "neutral", sentimentScore: 0.47, date: "2026-01-09", category: "Ambiance" },
+  { id: "seed-151", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Craig L.", rating: 5, text: "Super speedy drive-thru service. In and out with hot food in under 3 minutes.", sentiment: "positive", sentimentScore: 0.95, date: "2026-01-01", category: "Service" },
+  { id: "seed-152", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Bethany H.", rating: 4, text: "Vegan beyond burger option is actually seasoned well and juicy, not cardboard-like.", sentiment: "positive", sentimentScore: 0.88, date: "2025-12-24", category: "Food Quality" },
+  { id: "seed-153", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Shane P.", rating: 2, text: "Floor near the drink station was soaked with soda and ice. Slipping hazard.", sentiment: "negative", sentimentScore: 0.15, date: "2025-12-16", category: "Hygiene" },
+  { id: "seed-154", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Renee C.", rating: 5, text: "Crispy buttermilk chicken tender basket with homemade honey mustard dip was outstanding.", sentiment: "positive", sentimentScore: 0.97, date: "2025-12-08", category: "Food Quality" },
+  { id: "seed-155", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Garrett E.", rating: 4, text: "$12 combo deal with burger, fries, and beverage is the best lunch bargain around.", sentiment: "positive", sentimentScore: 0.94, date: "2025-11-25", category: "Value" },
+  { id: "seed-156", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Lori F.", rating: 3, text: "Burger was fine, fries were a bit over-salted on this occasion.", sentiment: "neutral", sentimentScore: 0.49, date: "2025-11-15", category: "Food Quality" },
+  { id: "seed-157", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Dominic N.", rating: 5, text: "Loaded tater tots with melted cheddar, bacon crumbles, and scallions were incredible.", sentiment: "positive", sentimentScore: 0.96, date: "2025-11-03", category: "Food Quality" },
+  { id: "seed-158", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Kelly D.", rating: 4, text: "Staff was polite, energetic, and brought condiments to our booth quickly.", sentiment: "positive", sentimentScore: 0.89, date: "2025-10-24", category: "Service" },
+  { id: "seed-159", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Spencer T.", rating: 2, text: "Drive-thru operator forgot our milkshakes and we had to loop around again.", sentiment: "negative", sentimentScore: 0.17, date: "2025-10-13", category: "Service" },
+  { id: "seed-160", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Jenna V.", rating: 5, text: "Retro 80s arcade machine in the lobby is fun while waiting for your order!", sentiment: "positive", sentimentScore: 0.92, date: "2025-10-04", category: "Ambiance" },
+  { id: "seed-161", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Grant B.", rating: 4, text: "BBQ pulled pork smash combo was rich, smoky, and satisfying.", sentiment: "positive", sentimentScore: 0.90, date: "2025-09-22", category: "Food Quality" },
+  { id: "seed-162", restaurantId: "burger-shack-id", restaurantName: "Burger Shack", customerName: "Carmen L.", rating: 5, text: "Classic strawberry milkshake with whipped cream and a cherry. Pure nostalgia.", sentiment: "positive", sentimentScore: 0.95, date: "2025-09-08", category: "Food Quality" },
+
+  // ─── Extensive Pool: Sakura Sushi ─────────────────────────────────────────────
+  { id: "seed-163", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Akira K.", rating: 5, text: "The bluefin otoro sashimi was sublime. Melted away like pure silk. Best Japanese dining in the city.", sentiment: "positive", sentimentScore: 0.99, date: "2026-02-18", category: "Food Quality", ownerReply: "Domo arigato Akira! We take great pride in our daily Tsukiji and Toyosu direct seafood shipments.", ownerReplyDate: "2026-02-18" },
+  { id: "seed-164", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Sabrina T.", rating: 5, text: "Wagyu beef nigiri lightly torched with truffle oil was an explosion of umami.", sentiment: "positive", sentimentScore: 0.98, date: "2026-02-11", category: "Food Quality" },
+  { id: "seed-165", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Marcus H.", rating: 4, text: "Yellowtail jalapeño sashimi with yuzu ponzu had the perfect tartness and heat.", sentiment: "positive", sentimentScore: 0.92, date: "2026-02-06", category: "Food Quality" },
+  { id: "seed-166", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Evelyn P.", rating: 2, text: "Waiter brought the wrong sushi rolls twice and seemed indifferent when we pointed it out.", sentiment: "negative", sentimentScore: 0.16, date: "2026-01-29", category: "Service", ownerReply: "Evelyn, we apologize for the service mishaps. We have reviewed our table ordering confirmation flow.", ownerReplyDate: "2026-01-30" },
+  { id: "seed-167", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Jonah W.", rating: 5, text: "The dragon roll with crispy eel, cucumber, and creamy avocado layer was magnificent.", sentiment: "positive", sentimentScore: 0.96, date: "2026-01-21", category: "Food Quality" },
+  { id: "seed-168", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Miriam G.", rating: 4, text: "Subtle zen decor with cedar wood partitions and relaxing water fountain ambiance.", sentiment: "positive", sentimentScore: 0.91, date: "2026-01-14", category: "Ambiance" },
+  { id: "seed-169", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Curtis R.", rating: 5, text: "Miso glazed black cod with baby bok choy was silky and caramelized to perfection.", sentiment: "positive", sentimentScore: 0.98, date: "2026-01-05", category: "Food Quality" },
+  { id: "seed-170", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Faye S.", rating: 3, text: "Quality sushi, but charging $6 for extra pickled ginger and wasabi is a bit stingy.", sentiment: "neutral", sentimentScore: 0.46, date: "2025-12-29", category: "Value" },
+  { id: "seed-171", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Malcolm D.", rating: 5, text: "Sitting at the sushi bar watching the itamae chefs carve fresh hamachi is pure theater.", sentiment: "positive", sentimentScore: 0.97, date: "2025-12-21", category: "Service" },
+  { id: "seed-172", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Nadine B.", rating: 4, text: "Shrimp and asparagus tempura was crisp, golden, and greaseless.", sentiment: "positive", sentimentScore: 0.89, date: "2025-12-12", category: "Food Quality" },
+  { id: "seed-173", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Russell C.", rating: 1, text: "Found a piece of brittle plastic wrapper in the spicy tuna roll. Major kitchen oversight.", sentiment: "negative", sentimentScore: 0.05, date: "2025-11-27", category: "Hygiene", ownerReply: "Russell, we take food safety with zero compromise. We immediately audited our sushi prep station.", ownerReplyDate: "2025-11-28" },
+  { id: "seed-174", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Hayley M.", rating: 5, text: "The chirashi bowl is loaded with salmon, tuna, scallop, ikura, and tamago. Incredible value.", sentiment: "positive", sentimentScore: 0.96, date: "2025-11-16", category: "Value" },
+  { id: "seed-175", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Preston Y.", rating: 4, text: "Warm sake selection is carefully curated and served at proper serving temperature.", sentiment: "positive", sentimentScore: 0.90, date: "2025-11-07", category: "Food Quality" },
+  { id: "seed-176", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Leona F.", rating: 5, text: "Matcha mille crepe cake was light, layers were delicate, and not overly sweet.", sentiment: "positive", sentimentScore: 0.94, date: "2025-10-27", category: "Food Quality" },
+  { id: "seed-177", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Damon K.", rating: 3, text: "Food was good but waited 40 minutes between our appetizers and our sushi platters.", sentiment: "neutral", sentimentScore: 0.48, date: "2025-10-16", category: "Service" },
+  { id: "seed-178", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Beth J.", rating: 5, text: "Attentive tea service and complimentary warm hand towels upon seating. Outstanding.", sentiment: "positive", sentimentScore: 0.96, date: "2025-10-08", category: "Service" },
+  { id: "seed-179", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Vaughn E.", rating: 4, text: "Crispy salmon skin roll with cucumber and sweet unagi sauce was super crunchy.", sentiment: "positive", sentimentScore: 0.91, date: "2025-09-23", category: "Food Quality" },
+  { id: "seed-180", restaurantId: "sakura-sushi-id", restaurantName: "Sakura Sushi", customerName: "Audra R.", rating: 5, text: "Uni from Hokkaido was incredibly fresh, creamy, and sweet. World-class Japanese dining.", sentiment: "positive", sentimentScore: 0.99, date: "2025-09-11", category: "Food Quality" }
 ];
 
 export const getStoredReviews = (): Review[] => {
@@ -150,7 +344,15 @@ export const getStoredReviews = (): Review[] => {
       localStorage.setItem("tastepulse_reviews_store", JSON.stringify(INITIAL_SEED_REVIEWS));
       return INITIAL_SEED_REVIEWS;
     }
-    return JSON.parse(raw);
+    const parsed: Review[] = JSON.parse(raw);
+    const existingIds = new Set(parsed.map(r => r.id));
+    const missingSeeds = INITIAL_SEED_REVIEWS.filter(s => !existingIds.has(s.id));
+    if (missingSeeds.length > 0) {
+      const merged = [...parsed, ...missingSeeds];
+      localStorage.setItem("tastepulse_reviews_store", JSON.stringify(merged));
+      return merged;
+    }
+    return parsed;
   } catch {
     return INITIAL_SEED_REVIEWS;
   }
@@ -492,28 +694,37 @@ export const getSentimentTrend = async (): Promise<SentimentTrend[]> => {
   }
 
   const reviews = getStoredReviews();
+  const monthOrder = ["Sep", "Oct", "Nov", "Dec", "Jan", "Feb"];
   const monthlyData: Record<string, { positive: number; negative: number; neutral: number }> = {
-    "Sep": { positive: 45, negative: 12, neutral: 8 },
-    "Oct": { positive: 52, negative: 15, neutral: 10 },
-    "Nov": { positive: 48, negative: 18, neutral: 12 },
-    "Dec": { positive: 65, negative: 10, neutral: 8 },
-    "Jan": { positive: 58, negative: 14, neutral: 11 },
-    "Feb": { positive: 62, negative: 8, neutral: 9 },
+    "Sep": { positive: 24, negative: 4, neutral: 4 },
+    "Oct": { positive: 28, negative: 6, neutral: 5 },
+    "Nov": { positive: 32, negative: 7, neutral: 5 },
+    "Dec": { positive: 45, negative: 6, neutral: 4 },
+    "Jan": { positive: 40, negative: 8, neutral: 7 },
+    "Feb": { positive: 42, negative: 6, neutral: 5 },
   };
 
   reviews.forEach(r => {
     const d = r.date || "";
-    if (d.startsWith("2026-02") || d.includes("Feb")) {
+    let monthKey = "";
+    if (d.startsWith("2025-09") || d.includes("Sep")) monthKey = "Sep";
+    else if (d.startsWith("2025-10") || d.includes("Oct")) monthKey = "Oct";
+    else if (d.startsWith("2025-11") || d.includes("Nov")) monthKey = "Nov";
+    else if (d.startsWith("2025-12") || d.includes("Dec")) monthKey = "Dec";
+    else if (d.startsWith("2026-01") || d.includes("Jan")) monthKey = "Jan";
+    else if (d.startsWith("2026-02") || d.includes("Feb")) monthKey = "Feb";
+
+    if (monthKey && monthlyData[monthKey]) {
       const s = r.sentiment || "neutral";
-      if (monthlyData["Feb"][s] !== undefined) {
-        monthlyData["Feb"][s] += 1;
+      if (monthlyData[monthKey][s] !== undefined) {
+        monthlyData[monthKey][s] += 1;
       }
     }
   });
 
-  return Object.entries(monthlyData).map(([month, counts]) => ({
+  return monthOrder.map(month => ({
     month,
-    ...counts
+    ...monthlyData[month]
   }));
 };
 

@@ -13,12 +13,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 const REVIEW_CATEGORIES = [
+  "General",
   "Food Quality",
   "Service",
   "Ambiance",
   "Value",
-  "Hygiene",
-  "General"
+  "Hygiene"
 ];
 
 const CustomerDashboard = () => {
@@ -28,10 +28,11 @@ const CustomerDashboard = () => {
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewText, setReviewText] = useState("");
-  const [rating, setRating] = useState(5);
-  const [selectedCategory, setSelectedCategory] = useState("Food Quality");
+  const [rating, setRating] = useState(0);
+  const [selectedCategory, setSelectedCategory] = useState("General");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittedFeedback, setSubmittedFeedback] = useState<Review | null>(null);
   
   // TastePulse Restaurant Directory dialog state
   const [isBrowseDirectoryOpen, setIsBrowseDirectoryOpen] = useState(false);
@@ -92,8 +93,8 @@ const CustomerDashboard = () => {
 
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!rating || !reviewText.trim()) {
-      toast.error("Please provide a rating and review text");
+    if (!rating || rating === 0 || !reviewText.trim()) {
+      toast.error("Please select a star rating and provide your review");
       return;
     }
     if (!selectedRestaurant) {
@@ -121,7 +122,9 @@ const CustomerDashboard = () => {
       // Update local state immediately
       setReviews(prev => [newReview, ...prev.filter(r => r.id !== newReview.id)]);
       setReviewText("");
-      setRating(5);
+      setRating(0);
+      setSelectedCategory("General");
+      setSubmittedFeedback(newReview);
       
       // Reload restaurants to refresh aggregates
       const updatedRestaurants = await getRestaurants();
@@ -246,7 +249,7 @@ const CustomerDashboard = () => {
               className="border-amber-500/40 hover:bg-amber-500/10 text-foreground font-body text-xs sm:text-sm flex items-center gap-1.5"
             >
               <Store className="w-4 h-4 text-amber-500" />
-              <span>Browse All Restaurants ({restaurants.length})</span>
+              <span>Browse All Restaurants</span>
             </Button>
 
             <Button
@@ -322,7 +325,7 @@ const CustomerDashboard = () => {
                           : "border-border bg-card/60 hover:bg-card hover:border-amber-500/40"
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <div className="flex items-center justify-between gap-2">
                         <div>
                           <h3 className="font-display font-semibold text-foreground text-sm flex items-center gap-1.5">
                             {restaurant.name}
@@ -330,26 +333,11 @@ const CustomerDashboard = () => {
                           </h3>
                           <span className="text-[11px] text-muted-foreground">{restaurant.cuisine}</span>
                         </div>
-                        <span className="text-[11px] bg-secondary text-secondary-foreground font-medium px-2 py-0.5 rounded-full">
-                          {restaurant.averageRating.toFixed(1)} ★
+                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                          isSelected ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground"
+                        }`}>
+                          {isSelected ? "Active" : "Select"}
                         </span>
-                      </div>
-
-                      <div className="flex items-center justify-between text-xs text-muted-foreground mt-2">
-                        <div className="flex items-center gap-1.5">
-                          <StarRating rating={Math.round(restaurant.averageRating)} size={12} />
-                          <span className="text-[11px]">({total} reviews)</span>
-                        </div>
-                        <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                          {posPct}% positive
-                        </span>
-                      </div>
-
-                      {/* Mini sentiment bar */}
-                      <div className="flex h-1.5 rounded-full overflow-hidden mt-2.5 bg-secondary/80">
-                        <div className="bg-emerald-500" style={{ width: `${(restaurant.sentimentSummary?.positive / (total || 1)) * 100}%` }} />
-                        <div className="bg-amber-500" style={{ width: `${(restaurant.sentimentSummary?.neutral / (total || 1)) * 100}%` }} />
-                        <div className="bg-rose-500" style={{ width: `${(restaurant.sentimentSummary?.negative / (total || 1)) * 100}%` }} />
                       </div>
                     </button>
                   );
@@ -376,12 +364,9 @@ const CustomerDashboard = () => {
                         <span className="bg-secondary text-secondary-foreground px-2.5 py-0.5 rounded-full font-medium">
                           {selectedRestaurant.cuisine}
                         </span>
-                        <div className="flex items-center gap-1">
-                          <StarRating rating={Math.round(selectedRestaurant.averageRating)} size={14} />
-                          <span className="font-semibold text-foreground text-sm">{selectedRestaurant.averageRating.toFixed(1)}</span>
-                        </div>
-                        <span>&bull;</span>
-                        <span>{reviews.length} customer reviews</span>
+                        <span className="text-emerald-600 dark:text-emerald-400 font-medium text-xs">
+                          ● Open for Guest Reviews
+                        </span>
                       </div>
                     </div>
 
@@ -428,15 +413,15 @@ const CustomerDashboard = () => {
                             >
                               <Star
                                 className={`w-6 h-6 ${
-                                  star <= rating
+                                  rating > 0 && star <= rating
                                     ? "fill-amber-400 text-amber-400 drop-shadow-sm"
-                                    : "text-muted-foreground/30 hover:text-amber-200"
+                                    : "text-muted-foreground/30 hover:text-amber-300"
                                 }`}
                               />
                             </button>
                           ))}
                           <span className="text-xs font-bold text-foreground ml-2">
-                            {rating} of 5
+                            {rating > 0 ? `${rating} of 5` : "Tap to rate"}
                           </span>
                         </div>
                       </div>
@@ -498,77 +483,34 @@ const CustomerDashboard = () => {
                   </form>
                 </div>
 
-                {/* Reviews List */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-display text-lg font-bold text-foreground">
-                      Reviews for {selectedRestaurant.name} ({reviews.length})
-                    </h3>
-                    <span className="text-xs text-muted-foreground font-body">
-                      Real-time Sentiment Stream
-                    </span>
-                  </div>
-
-                  {reviews.length === 0 ? (
-                    <div className="glass-card rounded-xl p-8 text-center">
-                      <p className="text-sm text-muted-foreground font-body">
-                        No reviews yet for {selectedRestaurant.name}. Be the first to share your experience!
+                {/* Submitted Feedback Receipt (Only for current user's session) */}
+                {submittedFeedback && (
+                  <div className="glass-card rounded-2xl p-6 border border-emerald-500/30 bg-emerald-500/5 animate-fade-in space-y-3 shadow-md">
+                    <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 font-bold text-sm font-display">
+                      <Check className="w-4 h-4" />
+                      <span>Feedback Successfully Logged to Restaurant Management</span>
+                    </div>
+                    <div className="p-4 rounded-xl bg-background/80 border border-border/60 space-y-2">
+                      <div className="flex items-center justify-between text-xs font-body">
+                        <span className="font-semibold text-foreground">{submittedFeedback.restaurantName}</span>
+                        <span className="text-muted-foreground">{submittedFeedback.date}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground font-body">
+                        <StarRating rating={submittedFeedback.rating} size={13} />
+                        <span>&bull;</span>
+                        <span className="bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-[11px] font-medium">
+                          {submittedFeedback.category}
+                        </span>
+                      </div>
+                      <p className="text-xs sm:text-sm text-foreground/90 font-body italic leading-relaxed pt-1">
+                        &ldquo;{submittedFeedback.text}&rdquo;
                       </p>
                     </div>
-                  ) : (
-                    reviews.map((review) => (
-                      <div key={review.id} className="glass-card rounded-xl p-5 border border-border/80 hover:border-amber-500/30 transition-all animate-fade-in space-y-2.5">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full gradient-amber flex items-center justify-center text-white shadow-sm font-bold text-xs">
-                              {review.customerName ? review.customerName.charAt(0).toUpperCase() : "D"}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold text-foreground font-body text-sm">
-                                  {review.customerName}
-                                </span>
-                                <SentimentBadge sentiment={review.sentiment} />
-                              </div>
-                              <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground font-body">
-                                <StarRating rating={review.rating} size={12} />
-                                <span>&bull;</span>
-                                <span>{review.date}</span>
-                                {review.category && (
-                                  <>
-                                    <span>&bull;</span>
-                                    <span className="bg-secondary text-secondary-foreground px-2 py-0.2 rounded text-[11px]">
-                                      {review.category}
-                                    </span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          <span className="text-[11px] text-muted-foreground font-mono">
-                            Score: {(review.sentimentScore * 100).toFixed(0)}%
-                          </span>
-                        </div>
-
-                        <p className="text-sm text-foreground/90 font-body leading-relaxed pl-12">
-                          {review.text}
-                        </p>
-
-                        {/* Owner Reply if exists */}
-                        {review.ownerReply && (
-                          <div className="ml-12 mt-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs font-body">
-                            <div className="flex items-center justify-between text-amber-600 dark:text-amber-400 font-semibold mb-1">
-                              <span>Chef / Owner Reply:</span>
-                              {review.ownerReplyDate && <span className="text-[10px] text-muted-foreground">{review.ownerReplyDate}</span>}
-                            </div>
-                            <p className="text-foreground/80">{review.ownerReply}</p>
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
+                    <p className="text-xxs text-muted-foreground font-body">
+                      🔒 Thank you for sharing your dining experience. Your feedback is sent directly to the executive kitchen and floor team.
+                    </p>
+                  </div>
+                )}
               </>
             ) : (
               <div className="glass-card rounded-2xl p-12 text-center">
@@ -649,16 +591,9 @@ const CustomerDashboard = () => {
                           {r.cuisine}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground font-body">
-                        <StarRating rating={Math.round(r.averageRating)} size={13} />
-                        <span className="font-semibold text-foreground">{r.averageRating.toFixed(1)}</span>
-                        <span>&bull;</span>
-                        <span>{total} total reviews</span>
-                        <span>&bull;</span>
-                        <span className="text-emerald-600 dark:text-emerald-400">
-                          {total > 0 ? Math.round((r.sentimentSummary.positive / total) * 100) : 0}% positive
-                        </span>
-                      </div>
+                      <p className="text-xs text-muted-foreground font-body">
+                        Verified TastePulse Dining Partner &bull; Open for Feedback
+                      </p>
                     </div>
 
                     <Button
