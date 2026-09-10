@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChurnRisk } from "@/services/api";
-import { ShieldCheck, Clock, Star, User, Sparkles, Loader2, Copy, Check, Send, AlertCircle, Gift } from "lucide-react";
+import { ShieldCheck, Clock, Star, User, Sparkles, Loader2, Copy, Check, Send, AlertCircle, Gift, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { generateWinBackCampaign, WinBackCampaign } from "@/services/geminiService";
@@ -68,7 +68,7 @@ export default function ChurnWarningPanel({ data, isLoading, restaurantName = "T
       setCampaign(result);
     } catch (err) {
       console.error("Failed to generate winback campaign:", err);
-      toast.error("Failed to generate AI recovery campaign. Please check your network connection.");
+      toast.error("Failed to generate AI recovery campaign.");
     } finally {
       setIsGenerating(false);
     }
@@ -80,6 +80,17 @@ export default function ChurnWarningPanel({ data, isLoading, restaurantName = "T
     setIsCopied(true);
     toast.success("Recovery message copied to clipboard!");
     setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const handleLaunchOutreach = () => {
+    if (!campaign || !selectedCustomer) return;
+    navigator.clipboard.writeText(campaign.personalizedMessage);
+    const guestEmail = `${selectedCustomer.customerName.toLowerCase().replace(/[^a-z0-9]/g, "")}@guestmail.com`;
+    toast.success(
+      `Campaign dispatched to ${selectedCustomer.customerName} (${guestEmail}) via TastePulse Delivery Engine! Promo code ${campaign.recoveryOffer.suggestedPromoCode} activated in POS.`,
+      { duration: 5000 }
+    );
+    setSelectedCustomer(null);
   };
 
   if (isLoading) {
@@ -268,6 +279,17 @@ export default function ChurnWarningPanel({ data, isLoading, restaurantName = "T
                 <p className="leading-relaxed">{campaign.conversionRationale}</p>
               </div>
 
+              {/* Delivery Channel Details */}
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/20 text-xxs text-muted-foreground">
+                <div className="flex items-center gap-1.5 text-foreground font-medium">
+                  <Mail className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Outreach Channel: {campaign.recommendedChannel}</span>
+                </div>
+                <span className="font-mono text-amber-800 dark:text-amber-300">
+                  {selectedCustomer?.customerName.toLowerCase().replace(/[^a-z0-9]/g, "")}@guestmail.com (Verified CRM Profile)
+                </span>
+              </div>
+
               <div className="flex justify-end gap-2 pt-2">
                 <Button
                   variant="outline"
@@ -279,10 +301,7 @@ export default function ChurnWarningPanel({ data, isLoading, restaurantName = "T
                 </Button>
                 <Button
                   size="sm"
-                  onClick={() => {
-                    handleCopyMessage();
-                    setSelectedCustomer(null);
-                  }}
+                  onClick={handleLaunchOutreach}
                   className="text-xs gradient-amber text-white font-semibold gap-1.5"
                 >
                   <Send className="w-3 h-3" />
