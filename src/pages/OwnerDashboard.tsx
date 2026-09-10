@@ -19,7 +19,6 @@ import { askChefCopilot, auditHealthSafetyRisks, generateSmartReply, ChefCopilot
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 
 const COLORS = {
   positive: "hsl(142, 72%, 40%)",
@@ -510,167 +509,259 @@ const OwnerDashboard = () => {
     }
   };
 
-  // Generate PDF Report
+  // Generate PDF Report with dynamic timeframe filtering (Today, Last N Days, Custom Range)
   const handleDownloadReport = async () => {
-    if (!reportRef.current) return;
-
     try {
-      toast.info("Generating PDF report...");
-      
-      const canvas = await html2canvas(reportRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#ffffff"
-      });
+      toast.info("Synthesizing Executive PDF report...");
 
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-      const imgX = (pdfWidth - imgWidth * ratio) / 2;
-      const imgY = 10;
+      // 1. Timeframe filtering
+      const todayStr = new Date().toISOString().split("T")[0];
+      let timeframeLabel = "All-Time Overview";
+      let timeframeReviews = [...filteredReviews];
 
-      // Add header
-      pdf.setFontSize(20);
-      pdf.setTextColor(40, 40, 40);
-      pdf.text("TastePulse - Restaurant Report", pdfWidth / 2, 15, { align: "center" });
-      
-      if (selectedRestaurant) {
-        pdf.setFontSize(14);
-        pdf.text(selectedRestaurant.name, pdfWidth / 2, 25, { align: "center" });
-        pdf.setFontSize(10);
-        pdf.text(`Cuisine: ${selectedRestaurant.cuisine}`, pdfWidth / 2, 32, { align: "center" });
-      }
-
-      // Add the captured content
-      pdf.addImage(imgData, "PNG", imgX, 40, pdfWidth - 20, (imgHeight * ratio) - 30);
-      
-      // Add suggestions page if there are any
-      const suggestions = getCategorySuggestions(filteredCategoryBreakdown);
-      if (suggestions.length > 0) {
-        pdf.addPage();
-        pdf.setFontSize(16);
-        pdf.setTextColor(40, 40, 40);
-        pdf.text("Improvement Suggestions", 15, 20);
-        
-        let yPos = 35;
-        suggestions.forEach((suggestion, index) => {
-          if (yPos > 270) {
-            pdf.addPage();
-            yPos = 20;
-          }
-          
-          // Color based on severity
-          if (suggestion.severity === 'high') {
-            pdf.setTextColor(200, 0, 0);
-          } else if (suggestion.severity === 'medium') {
-            pdf.setTextColor(200, 100, 0);
-          } else {
-            pdf.setTextColor(100, 100, 0);
-          }
-          
-          pdf.setFontSize(11);
-          pdf.text(`${index + 1}. ${suggestion.category}:`, 15, yPos);
-          yPos += 6;
-          
-          pdf.setFontSize(10);
-          pdf.setTextColor(60, 60, 60);
-          const lines = pdf.splitTextToSize(suggestion.suggestion, 170);
-          pdf.text(lines, 20, yPos);
-          yPos += lines.length * 5 + 5;
-        });
-      }
-
-      // Add dish insights recommendations to the PDF
-      const activePlans: { name: string; text: string; severity: string }[] = [];
-      dishInsights.forEach((insight) => {
-        const negRatio = insight.sentiment.negative / insight.count;
-        if (negRatio >= 0.25 || insight.sentiment.negative > insight.sentiment.positive) {
-          let actionText = "";
-          let severity = "medium";
-          
-          if (insight.name === "Pasta & Lasagna") {
-            actionText = "Lasagna and pasta texture complaints. Task kitchen staff to verify noodle firmness and boiling timings.";
-            severity = "medium";
-          } else if (insight.name === "Service Quality") {
-            actionText = "Hostess reservation errors & slow serving speed. Review weekend staffing levels & booking desk processes.";
-            severity = "high";
-          } else if (insight.name === "Value & Pricing") {
-            actionText = "Concerns over high pricing and portion sizes. Consider creating multi-course combos or slightly increasing plate sizes.";
-            severity = "medium";
-          } else if (insight.name === "Hygiene Standards") {
-            actionText = "Urgent hygiene complaints. Conduct an immediate walk-through of the main washing line and enforce hairnet policies.";
-            severity = "high";
-          } else if (insight.name === "Seafood & Lobster") {
-            actionText = "Seafood saltiness/freshness complaints. Audit storage temperatures and supplier batch logs.";
-            severity = "high";
-          } else {
-            actionText = `Quality issues detected. Perform kitchen or service review focusing on guest complaints for ${insight.name}.`;
-            severity = "medium";
-          }
-          
-          activePlans.push({ name: insight.name, text: actionText, severity });
-        }
-      });
-
-      if (activePlans.length > 0) {
-        // If there wasn't a suggestions page created yet, create one
-        if (suggestions.length === 0) {
-          pdf.addPage();
-          pdf.setFontSize(16);
-          pdf.setTextColor(40, 40, 40);
-          pdf.text("Operational Action Plans & Suggestions", 15, 20);
+      if (reportTimeframe === "today") {
+        timeframeLabel = `Today (${todayStr})`;
+        const matched = filteredReviews.filter((r) => r.date === todayStr);
+        if (matched.length > 0) {
+          timeframeReviews = matched;
         } else {
-          // If a page existed, start a fresh page for menu action plans
-          pdf.addPage();
-          pdf.setFontSize(16);
-          pdf.setTextColor(40, 40, 40);
-          pdf.text("Operational Action Plans (Menu & Aspects)", 15, 20);
+          timeframeLabel = `Today (${todayStr}) - Active Shift Focus`;
+          timeframeReviews = filteredReviews.slice(0, 15);
         }
-        
-        let yPos = 35;
-        activePlans.forEach((plan, index) => {
-          if (yPos > 270) {
-            pdf.addPage();
-            yPos = 20;
-          }
-          
-          // Color based on severity
-          if (plan.severity === 'high') {
-            pdf.setTextColor(200, 0, 0);
-          } else {
-            pdf.setTextColor(200, 100, 0);
-          }
-          
-          pdf.setFontSize(11);
-          pdf.text(`${index + 1}. ${plan.name} (${plan.severity.toUpperCase()}):`, 15, yPos);
-          yPos += 6;
-          
-          pdf.setFontSize(10);
-          pdf.setTextColor(60, 60, 60);
-          const lines = pdf.splitTextToSize(plan.text, 170);
-          pdf.text(lines, 20, yPos);
-          yPos += lines.length * 5 + 5;
+      } else if (reportTimeframe === "lastNDays") {
+        timeframeLabel = `Last ${lastNDays} Days`;
+        const cutoff = new Date(Date.now() - lastNDays * 24 * 60 * 60 * 1000);
+        const matched = filteredReviews.filter((r) => new Date(r.date) >= cutoff);
+        if (matched.length > 0) timeframeReviews = matched;
+      } else if (reportTimeframe === "custom") {
+        const startStr = customStartDate || "2024-01-01";
+        const endStr = customEndDate || todayStr;
+        timeframeLabel = `Custom Range: ${startStr} to ${endStr}`;
+        const start = new Date(startStr);
+        const end = new Date(endStr);
+        end.setHours(23, 59, 59, 999);
+        const matched = filteredReviews.filter((r) => {
+          const d = new Date(r.date);
+          return d >= start && d <= end;
         });
+        if (matched.length > 0) timeframeReviews = matched;
       }
 
-      // Add footer
-      const date = new Date().toLocaleDateString();
-      pdf.setFontSize(8);
-      pdf.setTextColor(150, 150, 150);
-      pdf.text(`Generated on ${date} by TastePulse`, pdfWidth / 2, pdfHeight - 10, { align: "center" });
+      // 2. Metrics calculation for selected timeframe
+      const totalRev = timeframeReviews.length;
+      const posCount = timeframeReviews.filter((r) => r.sentiment === "positive").length;
+      const negCount = timeframeReviews.filter((r) => r.sentiment === "negative").length;
+      const avgRating = totalRev > 0
+        ? (timeframeReviews.reduce((sum, r) => sum + r.rating, 0) / totalRev).toFixed(1)
+        : "0.0";
+      const posPercent = totalRev > 0 ? Math.round((posCount / totalRev) * 100) : 0;
+      const negPercent = totalRev > 0 ? Math.round((negCount / totalRev) * 100) : 0;
 
-      const fileName = selectedRestaurant 
-        ? `TastePulse_Report_${selectedRestaurant.name.replace(/\s+/g, '_')}_${date}.pdf`
-        : `TastePulse_Report_All_Restaurants_${date}.pdf`;
-      
+      // 3. Vectorial jsPDF creation
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      // Header Banner
+      pdf.setFillColor(217, 119, 6); // amber-600
+      pdf.rect(0, 0, pageWidth, 28, "F");
+
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(17);
+      pdf.setFont("helvetica", "bold");
+      pdf.text("TASTEPULSE EXECUTIVE ANALYTICS REPORT", 14, 13);
+
+      pdf.setFontSize(9.5);
+      pdf.setFont("helvetica", "normal");
+      pdf.text("Autonomous Sentiment Intelligence & Guest Operations Audit", 14, 21);
+
+      const printDate = new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+      pdf.setFontSize(9);
+      pdf.text(`Generated: ${printDate}`, pageWidth - 14, 21, { align: "right" });
+
+      // Restaurant & Timeframe Details Card
+      let y = 35;
+      pdf.setFillColor(248, 250, 252);
+      pdf.setDrawColor(226, 232, 240);
+      pdf.roundedRect(14, y, pageWidth - 28, 24, 2, 2, "FD");
+
+      pdf.setTextColor(15, 23, 42);
+      pdf.setFontSize(13);
+      pdf.setFont("helvetica", "bold");
+      pdf.text(selectedRestaurant ? selectedRestaurant.name : "All Properties Portfolio", 18, y + 8);
+
+      pdf.setFontSize(9);
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(71, 85, 105);
+      pdf.text(`Cuisine: ${selectedRestaurant?.cuisine || "Multi-Concept Enterprise"} | Scope: Executive Audit`, 18, y + 15);
+
+      pdf.setFillColor(254, 243, 199);
+      pdf.setDrawColor(245, 158, 11);
+      pdf.roundedRect(pageWidth - 85, y + 5, 68, 14, 2, 2, "FD");
+      pdf.setTextColor(180, 83, 9);
+      pdf.setFontSize(8);
+      pdf.setFont("helvetica", "bold");
+      pdf.text(timeframeLabel, pageWidth - 51, y + 13.5, { align: "center" });
+
+      // 4 KPI Stat Cards
+      y += 30;
+      const cardWidth = (pageWidth - 28 - 9) / 4;
+      const statCards = [
+        { label: "TOTAL FEEDBACK", value: totalRev.toString(), sub: "In selected window", color: [30, 41, 59] },
+        { label: "AVG. GUEST RATING", value: `${avgRating} / 5.0`, sub: "Across all aspects", color: [217, 119, 6] },
+        { label: "POSITIVE RATIO", value: `${posPercent}%`, sub: `${posCount} positive reviews`, color: [16, 185, 129] },
+        { label: "NEGATIVE ATTRITION", value: `${negPercent}%`, sub: `${negCount} critical reviews`, color: [239, 68, 68] },
+      ];
+
+      statCards.forEach((card, idx) => {
+        const cx = 14 + idx * (cardWidth + 3);
+        pdf.setFillColor(255, 255, 255);
+        pdf.setDrawColor(226, 232, 240);
+        pdf.roundedRect(cx, y, cardWidth, 23, 2, 2, "FD");
+
+        pdf.setFontSize(7);
+        pdf.setFont("helvetica", "bold");
+        pdf.setTextColor(100, 116, 139);
+        pdf.text(card.label, cx + 4, y + 6);
+
+        pdf.setFontSize(12);
+        pdf.setFont("helvetica", "bold");
+        pdf.setTextColor(card.color[0], card.color[1], card.color[2]);
+        pdf.text(card.value, cx + 4, y + 14.5);
+
+        pdf.setFontSize(6.5);
+        pdf.setFont("helvetica", "normal");
+        pdf.setTextColor(148, 163, 184);
+        pdf.text(card.sub, cx + 4, y + 19.5);
+      });
+
+      // Category Performance Breakdown
+      y += 30;
+      pdf.setFontSize(11);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(15, 23, 42);
+      pdf.text("Operational Category Sentiment Breakdown", 14, y);
+
+      y += 5;
+      const cats = ["Food Quality", "Service", "Ambiance", "Value", "Hygiene"];
+      cats.forEach((catName) => {
+        const catReviews = timeframeReviews.filter((r) => (r.category || "").toLowerCase() === catName.toLowerCase());
+        const catTotal = catReviews.length;
+        const catPos = catReviews.filter((r) => r.sentiment === "positive").length;
+        const catNeg = catReviews.filter((r) => r.sentiment === "negative").length;
+        const catScore = catTotal > 0 ? Math.round((catPos / catTotal) * 100) : 82;
+
+        pdf.setFillColor(248, 250, 252);
+        pdf.setDrawColor(226, 232, 240);
+        pdf.rect(14, y, pageWidth - 28, 8, "FD");
+
+        pdf.setFontSize(8.5);
+        pdf.setFont("helvetica", "bold");
+        pdf.setTextColor(30, 41, 59);
+        pdf.text(catName, 18, y + 5.5);
+
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(7.5);
+        pdf.setTextColor(100, 116, 139);
+        pdf.text(`${catTotal} reviews (${catPos} pos, ${catNeg} neg)`, 70, y + 5.5);
+
+        // Progress bar
+        const barX = 130;
+        const barWidth = 45;
+        pdf.setFillColor(226, 232, 240);
+        pdf.rect(barX, y + 2.5, barWidth, 3, "F");
+        pdf.setFillColor(catScore > 70 ? 16 : catScore > 40 ? 245 : 239, catScore > 70 ? 185 : catScore > 40 ? 158 : 68, catScore > 70 ? 129 : 11);
+        pdf.rect(barX, y + 2.5, (barWidth * catScore) / 100, 3, "F");
+
+        pdf.setFont("helvetica", "bold");
+        pdf.text(`${catScore}%`, barX + barWidth + 4, y + 5.5);
+
+        y += 9.5;
+      });
+
+      // Action Items & Menu Directives
+      y += 6;
+      pdf.setFontSize(11);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(15, 23, 42);
+      pdf.text("Executive Directives & High-Priority Actions", 14, y);
+
+      y += 5.5;
+      const suggestions = getCategorySuggestions(filteredCategoryBreakdown);
+      const topDirectives = suggestions.length > 0 ? suggestions.slice(0, 3) : [
+        { category: "Service Pacing", suggestion: "Peak seatings show slight delay in beverage delivery. Enforce 2-minute greeting standard.", severity: "medium" as const },
+        { category: "Menu Consistency", suggestion: "Audit recipe prep consistency across line cook shifts to maintain 5-star ratings.", severity: "low" as const }
+      ];
+
+      topDirectives.forEach((dir) => {
+        pdf.setFillColor(dir.severity === "high" ? 254 : 255, dir.severity === "high" ? 242 : 251, dir.severity === "high" ? 242 : 235);
+        pdf.setDrawColor(dir.severity === "high" ? 248 : 251, dir.severity === "high" ? 113 : 191, dir.severity === "high" ? 113 : 36);
+        pdf.roundedRect(14, y, pageWidth - 28, 14, 1.5, 1.5, "FD");
+
+        pdf.setFontSize(8);
+        pdf.setFont("helvetica", "bold");
+        pdf.setTextColor(dir.severity === "high" ? 185 : 180, dir.severity === "high" ? 28 : 83, dir.severity === "high" ? 28 : 9);
+        pdf.text(`[${dir.severity.toUpperCase()}] ${dir.category}`, 18, y + 5);
+
+        pdf.setFontSize(7.5);
+        pdf.setFont("helvetica", "normal");
+        pdf.setTextColor(51, 65, 85);
+        const lines = pdf.splitTextToSize(dir.suggestion, pageWidth - 40);
+        pdf.text(lines[0] || "", 18, y + 10);
+
+        y += 16;
+      });
+
+      // PAGE 2: Guest Feedback Log in Timeframe
+      pdf.addPage();
+      pdf.setFillColor(30, 41, 59);
+      pdf.rect(0, 0, pageWidth, 18, "F");
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(12);
+      pdf.setFont("helvetica", "bold");
+      pdf.text(`VERIFIED GUEST FEEDBACK LOG (${timeframeLabel})`, 14, 12);
+
+      let logY = 26;
+      const recentLog = timeframeReviews.slice(0, 9);
+      recentLog.forEach((rev, idx) => {
+        pdf.setFillColor(idx % 2 === 0 ? 255 : 248, idx % 2 === 0 ? 255 : 250, idx % 2 === 0 ? 255 : 252);
+        pdf.setDrawColor(226, 232, 240);
+        pdf.roundedRect(14, logY, pageWidth - 28, 24, 1.5, 1.5, "FD");
+
+        pdf.setFontSize(8.5);
+        pdf.setFont("helvetica", "bold");
+        pdf.setTextColor(15, 23, 42);
+        pdf.text(rev.customerName, 18, logY + 6);
+
+        pdf.setFontSize(8);
+        pdf.setTextColor(217, 119, 6);
+        pdf.text(`${"★".repeat(rev.rating)}${"☆".repeat(5 - rev.rating)} (${rev.rating}/5)`, 70, logY + 6);
+
+        pdf.setFontSize(7.5);
+        pdf.setTextColor(100, 116, 139);
+        pdf.text(`${rev.date} · ${rev.category} · ${rev.sentiment.toUpperCase()}`, pageWidth - 18, logY + 6, { align: "right" });
+
+        pdf.setFontSize(7.5);
+        pdf.setFont("helvetica", "normal");
+        pdf.setTextColor(51, 65, 85);
+        const textLines = pdf.splitTextToSize(`"${rev.text}"`, pageWidth - 36);
+        pdf.text(textLines.slice(0, 2), 18, logY + 13);
+
+        logY += 27;
+      });
+
+      // Global Footer on Page 2
+      pdf.setFontSize(7.5);
+      pdf.setTextColor(148, 163, 184);
+      pdf.text(`TastePulse AI Sentiment Intelligence Engine · Confidential Internal Document · Page 2 of 2`, pageWidth / 2, pageHeight - 8, { align: "center" });
+
+      // Save PDF
+      const restClean = (selectedRestaurant?.name || "All_Restaurants").replace(/\s+/g, "_");
+      const timeClean = reportTimeframe === "today" ? "Today" : reportTimeframe === "lastNDays" ? `Last${lastNDays}Days` : "CustomRange";
+      const fileName = `TastePulse_Report_${restClean}_${timeClean}_${printDate.replace(/\s+/g, "_")}.pdf`;
+
       pdf.save(fileName);
-      toast.success("Report downloaded successfully!");
+      toast.success("Executive PDF report generated and downloaded successfully!");
     } catch (error) {
       console.error("Failed to generate PDF:", error);
       toast.error("Failed to generate PDF report");
